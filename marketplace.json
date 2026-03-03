@@ -331,6 +331,23 @@
       "version": 1
     },
     {
+      "name": "tech-android",
+      "source": "./skills/framework/tech-android",
+      "description": "Android and Kotlin development patterns — Compose, architecture, coroutines, Room, navigation, Hilt.",
+      "category": "framework",
+      "tags": [
+        "android",
+        "kotlin",
+        "compose",
+        "jetpack",
+        "mobile"
+      ],
+      "extends": "platform-mobile",
+      "status": "ready",
+      "rules": 11,
+      "version": 3
+    },
+    {
       "name": "rewrite-commit-history",
       "source": "./skills/assistant/rewrite-commit-history",
       "description": "Rewrite a feature branch's commit history into clean conventional commits.",
@@ -371,19 +388,6 @@
         "swift",
         "swiftui",
         "apple",
-        "mobile"
-      ],
-      "extends": "platform-mobile"
-    },
-    {
-      "name": "tech-android",
-      "source": "./skills/_drafts/framework/tech-android",
-      "description": "Android and Kotlin development patterns — Compose, architecture, Play Store.",
-      "category": "framework",
-      "tags": [
-        "android",
-        "kotlin",
-        "compose",
         "mobile"
       ],
       "extends": "platform-mobile"
