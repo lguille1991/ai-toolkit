@@ -1,5 +1,7 @@
 # Ravn AI Toolkit
 
+[![Skills Quality](https://github.com/ravnhq/ai-toolkit/actions/workflows/skills-quality.yml/badge.svg)](https://github.com/ravnhq/ai-toolkit/actions/workflows/skills-quality.yml)
+
 Modular "skills" — portable rule packs that teach AI coding agents (Claude Code, Cursor, etc.) best practices for specific technologies — so every project gets consistent, expert-level guidance without copy-pasting prompts.
 
 ## Quick Start
@@ -48,6 +50,10 @@ Running `npx skills update` upgrades every installed skill to its latest build u
 - See `docs/skill-versioning.md` for how versioning works in detail.
 - Run `ruby scripts/skills_audit.rb` to validate skill structure and `ruby scripts/skills_harness.rb` to run the test harness.
 - Open an issue with repro steps and relevant logs.
+
+## Blog
+
+Tips, guides, and deep dives on AI-assisted development — visit the [Ravn AI Toolkit Blog](https://ravnhq.github.io/ai-toolkit/).
 
 ## Contributing
 
