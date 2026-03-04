@@ -467,22 +467,6 @@
         "gestures"
       ],
       "extends": "design"
-    },
-    {
-      "name": "agent-pr-creator",
-      "source": "./skills/assistant/agent-pr-creator",
-      "description": "Analyzes git diffs and commit history to intelligently fill PR templates and create pull requests via gh CLI.",
-      "category": "assistant",
-      "tags": [
-        "agent",
-        "git",
-        "pull-request",
-        "github",
-        "workflow",
-        "automation"
-      ],
-      "status": "ready",
-      "version": 1
     }
   ]
 }
