@@ -1,6 +1,14 @@
 ---
 name: localize-ios
-description: "Localizes UIKit Views and ViewControllers and SwiftUI Views. Extracts hardcoded text, generates camelCase keys, replaces literals with String(localized:) or LocalizedStringKey, and creates or updates Localizable.xcstrings. Use when: (1) localizing a UIKit or SwiftUI file, (2) extracting hardcoded strings from Swift, (3) adding xcstrings entries. Triggers on: localize, extract strings, add localization, make localizable, xcstrings, localize this view, localize this file. NOT for general Swift tasks unrelated to localization."
+description: 'Localizes UIKit Views and ViewControllers and SwiftUI Views. Extracts
+  hardcoded text, generates camelCase keys, replaces literals with String(localized:)
+  or LocalizedStringKey, and creates or updates Localizable.xcstrings. Use when: (1)
+  localizing a UIKit or SwiftUI file, (2) extracting hardcoded strings from Swift,
+  (3) adding xcstrings entries. Triggers on: localize, extract strings, add localization,
+  make localizable, xcstrings, localize this view, localize this file. NOT for general
+  Swift tasks unrelated to localization.'
+metadata:
+  version: 1
 ---
 
 # Localize Swift
