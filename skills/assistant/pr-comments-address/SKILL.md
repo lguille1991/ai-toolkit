@@ -1,9 +1,9 @@
 ---
 name: pr-comments-address
-description: Reads open review comments from a GitHub PR, triages them, applies
-  code fixes, and drafts reply messages. Use when user wants to address PR comments,
-  says 'address review comments', 'fix PR feedback', 'handle PR comments', 'respond
-  to review', or mentions addressing code review feedback on a pull request.
+description: Reads open review comments from a GitHub PR, triages them, applies code
+  fixes, and drafts reply messages. Use when user wants to address PR comments, says
+  'address review comments', 'fix PR feedback', 'handle PR comments', 'respond to
+  review', or mentions addressing code review feedback on a pull request.
 metadata:
   category: assistant
   tags:
@@ -15,7 +15,7 @@ metadata:
   - automation
   - gh-cli
   status: ready
-  version: 1
+  version: 2
 ---
 
 Address review comments on the following PR: $ARGUMENTS

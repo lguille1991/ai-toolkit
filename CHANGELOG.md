@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-03-10
+
+- Added pr comments address skill. (#14)
 ## 2026-03-03
 
 - Added tech-android skill with 28 rules. (#4)
