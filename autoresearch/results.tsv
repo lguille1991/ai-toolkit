@@ -3,3 +3,4 @@ commit	score	status	description
 cdbbdd7	82.9	keep	fix trigger format to User: quote pattern with singular headings
 5eb5622	100.0	keep	reformat troubleshooting to Error/Cause/Solution format
 30ae325	100.0	keep	boost positive trigger keyword overlap (8→12 hits)
+4ba889f	100.0	keep	tighten description wording
