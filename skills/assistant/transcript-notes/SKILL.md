@@ -123,3 +123,7 @@ Expected behavior: This is meeting agenda creation, not transcript processing. T
 - Error: Transcript has overlapping or unclear speaker labels
   - Cause: Multiple speakers share similar names or labels are inconsistent (e.g., "John" vs "John S." vs "JS").
   - Solution: Normalize speaker names to full names where identifiable; ask user for disambiguation if ambiguous.
+
+- Error: Transcript has no speaker labels
+  - Cause: Raw transcript is a continuous text block without speaker attribution (e.g., auto-generated without diarization).
+  - Solution: Ask user if speaker info is available separately; otherwise attribute all content to "Unknown Speaker" and note the limitation in metadata.
