@@ -118,3 +118,7 @@ Expected behavior: This is a general summarization request, not transcript proce
 - Error: Cannot estimate duration
   - Cause: No timing cues, timestamps, or length indicators in transcript.
   - Solution: Omit Duration from the Meeting Metadata section.
+
+- Error: Transcript has overlapping or unclear speaker labels
+  - Cause: Multiple speakers share similar names or labels are inconsistent (e.g., "John" vs "John S." vs "JS").
+  - Solution: Normalize speaker names to full names where identifiable; ask user for disambiguation if ambiguous.
