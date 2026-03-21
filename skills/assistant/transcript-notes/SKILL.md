@@ -93,6 +93,7 @@ Convert a raw meeting transcript `.txt` file into a structured `.md` notes file.
 - Long transcripts (>5000 words) — process in sections, then merge; do not truncate or skip content
 - Preserve speaker terminology — keep acronyms, jargon, and domain-specific terms as spoken; do not rephrase or "clean up" technical language
 - TL;DR must focus on outcomes and decisions, not just list what was discussed — "The team decided X" not "The team discussed X"
+- Action items must include deadlines or timeframes when mentioned in the transcript — "by Friday" or "next sprint", not just the task
 
 ## Examples
 
