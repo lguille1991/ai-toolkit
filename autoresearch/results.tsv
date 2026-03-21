@@ -1,0 +1,3 @@
+commit	score	status	description
+4ca4882	47.1	baseline	initial state
+cdbbdd7	82.9	keep	fix trigger format to User: quote pattern with singular headings
