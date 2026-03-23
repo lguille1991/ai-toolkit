@@ -1,11 +1,40 @@
 """Shared utilities for eval-agent-md scripts."""
+import hashlib
 import json
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import cast
 
 PROMPTS_DIR = Path(__file__).parent / "prompts"
+
+
+def stable_cache_key(*parts: object) -> str:
+    """Build a stable SHA-256 cache key from structured inputs."""
+    payload = json.dumps(list(parts), ensure_ascii=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def read_json_cache(path: Path) -> dict | list | None:
+    """Read JSON from a cache file, returning None on cache miss or parse failure."""
+    try:
+        return json.loads(path.read_text())
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return None
+
+
+def write_json_cache(path: Path, payload: dict | list) -> None:
+    """Atomically write JSON cache content."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.write_text(json.dumps(payload, indent=2))
+    tmp_path.replace(path)
+
+
+def file_sha256(path: Path) -> str:
+    """Hash a file's current contents."""
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def strip_markdown_fences(text: str) -> str:
@@ -90,4 +119,4 @@ def parse_json_response(text: str, expect_type: type = list) -> dict | list:
         print(f"Expected {expect_type.__name__}, got {type(result).__name__}", file=sys.stderr)
         sys.exit(1)
 
-    return result
+    return cast(dict | list, result)

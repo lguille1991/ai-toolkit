@@ -58,6 +58,10 @@ Read the file and confirm with the user: "I found [filename] at [path] ([N] line
 
 Tell the user: "Generating test scenarios from [filename]... this calls `claude -p --model sonnet` and typically takes 30-60 seconds."
 
+Before running, mention whether this is a warm or cold generation run:
+- Warm cache: "Scenario cache is warm, so generation may return almost immediately."
+- Cold cache: "Scenario cache is cold, so this will make a fresh model call."
+
 Run the scenario generator script bundled with this skill. **IMPORTANT: Do NOT capture output — run via the Bash tool so the user sees progress lines in real time:**
 
 ```bash
@@ -69,6 +73,7 @@ uv run --script [SKILL_DIR]/scripts/generate-scenarios.py [TARGET_FILE]
 ```
 
 The script auto-detects the repository name from git and saves to `/tmp/eval-agent-md-<repo>-scenarios.yaml` (e.g., `/tmp/eval-agent-md-my-project-scenarios.yaml`). Override with `--repo-name NAME` or `-o PATH`.
+It also reuses an exact-input scenario cache by default; pass `--no-scenario-cache` to force fresh generation. `--no-cache` remains as a compatibility alias.
 
 After generation, read the output file and show the user a summary:
 - How many scenarios were generated
@@ -80,6 +85,12 @@ Ask the user: "Generated [N] test scenarios. Ready to run? (Or edit/skip any?)"
 ### Step 3: Run behavioral tests
 
 Tell the user: "Running [N] scenarios x [runs] run(s) against [model]... each scenario calls `claude -p` twice (subject + judge), so this takes a few minutes. You'll see per-scenario results as they complete."
+
+Also summarize the work budget before starting:
+- active workers (auto defaults to a laptop-safe cap)
+- estimated subject calls
+- estimated judge calls
+- whether subject-response cache is warm or cold
 
 **IMPORTANT: Do NOT capture output — run via the Bash tool so the user sees per-scenario progress (`[1/N] scenario_id... PASS/FAIL (Xs)`) in real time:**
 
@@ -95,6 +106,9 @@ Options the user can control:
 - `--runs N` — runs per scenario for majority vote (default: 1, recommend 3 for reliability)
 - `--model MODEL` — model for test subject (default: sonnet)
 - `--compare-models` — run across haiku/sonnet/opus and show comparison matrix
+- `--workers N` — opt into higher concurrency than the safe default
+- `--no-judge-cache` — force fresh judge verdicts instead of reusing exact-input cache entries
+- `--no-subject-cache` — force fresh subject responses instead of exact-input cache reuse
 
 ### Step 4: Report results
 
@@ -120,6 +134,8 @@ If the user says "improve", "fix", or passed `--improve`:
 
 Tell the user: "Starting mutation loop (dry-run) — this iteratively generates wording fixes for failing rules and A/B tests them. Each iteration takes 1-2 minutes."
 
+For performance, explain that scoped mutation checks now reuse the baseline already computed for the current content and only re-evaluate the mutated candidate for the targeted scenario before any full-suite validation.
+
 **IMPORTANT: Do NOT capture output — run via the Bash tool so the user sees iteration progress in real time:**
 
 ```bash
@@ -142,9 +158,14 @@ Parse the user's `/eval-agent-md` invocation for these optional arguments:
 - `--runs N` — runs per scenario (default: 1)
 - `--model MODEL` — model for test subject (default: sonnet)
 - `--compare-models` — cross-model comparison (haiku/sonnet/opus)
+- `--workers N` — override laptop-safe auto-worker cap
 - `--agent` — hint that the target is an agent definition file (adjusts generation style)
 - `--skill` — hint that the target is a SKILL.md file (focuses scenarios on workflow order, argument contracts, progress reporting)
 - `--self` — auto-resolve to this skill's own SKILL.md for dogfooding (implies `--skill`, ignores path argument)
+- `--no-scenario-cache` — disable exact-input scenario generation cache
+- `--no-cache` — compatibility alias for `--no-scenario-cache` in scenario generation and `--no-judge-cache` in behavioral eval/mutation loop
+- `--no-judge-cache` — disable exact-input judge cache during behavioral eval or mutation loop
+- `--no-subject-cache` — disable exact-input subject response cache during behavioral eval
 
 ## Examples
 
@@ -191,5 +212,9 @@ Expected behavior: Do not use this skill. Choose a more relevant skill or procee
 - All scripts use `uv run --script` — no pip install needed
 - The judge always uses haiku (cheap, fast, reliable for scoring)
 - Generated scenarios are ephemeral (temp dir) — they adapt to the current file state
+- Scenario generation and subject responses use exact-input caches by default for faster reruns
+- Judge verdicts also use exact-input caching by default; use the explicit `--no-judge-cache` flag to bypass it
+- Auto-workers default to a conservative laptop-safe cap; users can opt into more with `--workers`
+- Mutation-loop scoped checks reuse the already-known baseline and re-evaluate only the mutated candidate before full-suite validation
 - For agent .md files, the generator creates role-boundary scenarios (e.g., "does the reviewer avoid writing code?")
 - Scripts are in this skill's `scripts/` directory

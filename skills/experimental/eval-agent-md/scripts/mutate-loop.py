@@ -23,7 +23,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from _common import claude_pipe, strip_markdown_fences
 
@@ -72,10 +72,17 @@ def _count_scenarios(scenarios_file: Path, scenario_ids: list[str] | None) -> in
 
 
 def run_eval(target: Path, scenarios_file: Path, scenario_ids: list[str] | None,
-             runs: int, model: str, per_call_timeout: int = 240) -> dict:
+             runs: int, model: str, per_call_timeout: int = 240, workers: int = 0,
+             no_judge_cache: bool = False, no_subject_cache: bool = False) -> dict:
     cmd = [str(EVAL_SCRIPT), "--runs", str(runs), "--model", model,
            "--claude-md", str(target), "--scenarios-file", str(scenarios_file),
            "--timeout", str(per_call_timeout)]
+    if workers:
+        cmd.extend(["--workers", str(workers)])
+    if no_judge_cache:
+        cmd.append("--no-judge-cache")
+    if no_subject_cache:
+        cmd.append("--no-subject-cache")
     if scenario_ids:
         cmd.extend(scenario_ids)
     n = _count_scenarios(scenarios_file, scenario_ids)
@@ -90,23 +97,19 @@ def run_eval(target: Path, scenarios_file: Path, scenario_ids: list[str] | None,
     return json.loads(files[0].read_text())
 
 
-def run_ab(baseline: Path, mutated: Path, scenarios_file: Path,
-           scenario_ids: list[str] | None, runs: int, model: str,
-           per_call_timeout: int = 240) -> tuple:
-    cmd = [str(EVAL_SCRIPT), "--runs", str(runs), "--model", model,
-           "--claude-md", str(baseline), "--mutate", str(mutated),
-           "--scenarios-file", str(scenarios_file),
-           "--timeout", str(per_call_timeout)]
-    if scenario_ids:
-        cmd.extend(scenario_ids)
-    n = _count_scenarios(scenarios_file, scenario_ids)
-    timeout = max(300, n * runs * 90 * 2 + 60)  # 2x for baseline + mutated
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-    return result, result.stdout
-
-
 def find_failing_scenarios(results: dict) -> list[dict]:
     return [s for s in results.get("scenarios", []) if s["final_verdict"] == "FAIL"]
+
+
+def scenario_pass_count(results: dict, scenario_id: str) -> int:
+    for scenario in results.get("scenarios", []):
+        if scenario.get("id") == scenario_id:
+            return int(scenario.get("passes", 0))
+    return 0
+
+
+def delta_for_scenario(baseline_results: dict, mutated_results: dict, scenario_id: str) -> int:
+    return scenario_pass_count(mutated_results, scenario_id) - scenario_pass_count(baseline_results, scenario_id)
 
 
 def generate_mutation(config_content: str, scenario: dict, scenarios_file: Path) -> dict | None:
@@ -191,6 +194,11 @@ def main():
     parser.add_argument("--timeout", type=int, default=240, help="Per-call claude -p timeout in seconds (default: 240)")
     parser.add_argument("--scenarios", nargs="*", help="Scenario IDs to focus on")
     parser.add_argument("--apply", action="store_true", help="Apply winning mutations (default: dry-run)")
+    parser.add_argument("--workers", type=int, default=0, help="Override worker count for behavioral eval")
+    parser.add_argument("--no-judge-cache", action="store_true", help="Disable judge verdict cache during eval")
+    parser.add_argument("--no-cache", action="store_true", dest="no_judge_cache",
+                        help="Alias for --no-judge-cache")
+    parser.add_argument("--no-subject-cache", action="store_true", help="Disable exact-input subject response cache")
 
     args = parser.parse_args()
     RESULTS_DIR.mkdir(exist_ok=True)
@@ -216,7 +224,17 @@ def main():
     print(f"\n{'=' * 60}")
     print("  Baseline evaluation")
     print(f"{'=' * 60}")
-    baseline_results = run_eval(args.target, args.scenarios_file, args.scenarios, args.runs, args.model, args.timeout)
+    baseline_results = run_eval(
+        args.target,
+        args.scenarios_file,
+        args.scenarios,
+        args.runs,
+        args.model,
+        args.timeout,
+        args.workers,
+        args.no_judge_cache,
+        args.no_subject_cache,
+    )
     baseline_passed = baseline_results["summary"]["passed"]
     baseline_total = baseline_results["summary"]["total"]
     print(f"  Baseline: {baseline_passed}/{baseline_total} ({_fmt_elapsed(t_start)})")
@@ -262,7 +280,7 @@ def main():
 
         mutated_content = apply_mutation(current_content, mutation)
         if mutated_content is None:
-            print(f"  old_text not found in config. Skipping.")
+            print("  old_text not found in config. Skipping.")
             stats["failed"] += 1
             iteration_log.append({"iteration": i, "target": target_scenario["id"],
                                   "result": "text_not_found", "mutation": mutation})
@@ -276,18 +294,20 @@ def main():
         try:
             _progress(i, args.max_iterations, target_scenario["id"], "A/B test", t_start, stats)
             scoped_scenario_ids = [target_scenario["id"]]
-            print(f"  A/B test (scoped to: {target_scenario['id']})...", flush=True)
-            ab_result, ab_stdout = run_ab(args.target, mutated_path, args.scenarios_file,
-                                          scoped_scenario_ids, args.runs, args.model, args.timeout)
-            print(ab_stdout)
-
-            delta_line = [l for l in ab_stdout.split("\n") if "Delta:" in l]
-            delta = 0
-            if delta_line:
-                try:
-                    delta = int(delta_line[0].split("Delta:")[1].strip().split()[0])
-                except (ValueError, IndexError):
-                    pass
+            print(f"  Scoped eval (mutated only: {target_scenario['id']})...", flush=True)
+            mutated_results = run_eval(
+                mutated_path,
+                args.scenarios_file,
+                scoped_scenario_ids,
+                args.runs,
+                args.model,
+                args.timeout,
+                args.workers,
+                args.no_judge_cache,
+                args.no_subject_cache,
+            )
+            delta = delta_for_scenario(baseline_results, mutated_results, target_scenario["id"])
+            print(f"  Delta: {delta:+d}")
 
             entry = {
                 "iteration": i,
@@ -307,11 +327,16 @@ def main():
                     current_content = mutated_content
                     print(f"  Applied mutation to {args.target}")
                 else:
-                    print(f"  (dry-run — mutation NOT applied)")
+                    print("  (dry-run — mutation NOT applied)")
                     current_content = mutated_content
+                for updated_scenario in mutated_results.get("scenarios", []):
+                    for idx, existing in enumerate(baseline_results.get("scenarios", [])):
+                        if existing.get("id") == updated_scenario.get("id"):
+                            baseline_results["scenarios"][idx] = updated_scenario
+                            break
             elif delta == 0:
                 stats["neutral"] += 1
-                print(f"  NEUTRAL — delta: 0 (not keeping)")
+                print("  NEUTRAL — delta: 0 (not keeping)")
             else:
                 stats["reverted"] += 1
                 print(f"  REVERT — delta: {delta:+d}")
@@ -322,7 +347,18 @@ def main():
         if args.apply and delta > 0:
             _progress(i, args.max_iterations, target_scenario["id"], "full-suite validation", t_start, stats)
             print("  Full-suite validation (catch regressions)...", flush=True)
-            reeval = run_eval(args.target, args.scenarios_file, args.scenarios, args.runs, args.model, args.timeout)
+            reeval = run_eval(
+                args.target,
+                args.scenarios_file,
+                args.scenarios,
+                args.runs,
+                args.model,
+                args.timeout,
+                args.workers,
+                args.no_judge_cache,
+                args.no_subject_cache,
+            )
+            baseline_results = reeval
             failing = find_failing_scenarios(reeval)
         else:
             failing = failing[1:]
@@ -333,7 +369,17 @@ def main():
         print("  Final full-suite validation")
         print(f"{'=' * 60}")
         print("  Running full-suite validation (catch regressions)...", flush=True)
-        final_results = run_eval(args.target, args.scenarios_file, args.scenarios, args.runs, args.model, args.timeout)
+        final_results = run_eval(
+            args.target,
+            args.scenarios_file,
+            args.scenarios,
+            args.runs,
+            args.model,
+            args.timeout,
+            args.workers,
+            args.no_judge_cache,
+            args.no_subject_cache,
+        )
         final_passed = final_results["summary"]["passed"]
         final_total = final_results["summary"]["total"]
         print(f"  Final score: {final_passed}/{final_total} ({_fmt_elapsed(t_start)})")

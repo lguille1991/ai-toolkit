@@ -15,20 +15,49 @@ Usage:
 import argparse
 import subprocess
 import sys
+import time
 from pathlib import Path
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
-from _common import claude_pipe, load_prompt, parse_json_response, strip_markdown_fences
+from _common import (
+    claude_pipe,
+    file_sha256,
+    load_prompt,
+    parse_json_response,
+    read_json_cache,
+    stable_cache_key,
+    strip_markdown_fences,
+    write_json_cache,
+)
 
 SYSTEM_PROMPT = load_prompt("system.md")
 EXAMPLES = load_prompt("examples.md")
 AGENT_CONTEXT = load_prompt("context-agent.md")
 SKILL_CONTEXT = load_prompt("context-skill.md")
+RESULTS_DIR = Path(__file__).parent / "results"
+SCENARIO_CACHE_DIR = RESULTS_DIR / "scenario_cache"
+
+
+def build_arg_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Generate behavioral test scenarios from CLAUDE.md")
+    parser.add_argument("config", nargs="?", type=Path, help="Path to CLAUDE.md or agent .md file")
+    parser.add_argument("-o", "--output", type=Path, help="Output YAML file (default: /tmp/eval-agent-md-<repo>-scenarios.yaml)")
+    parser.add_argument("--repo-name", default=None, help="Repository name for output filename (auto-detected from git)")
+    parser.add_argument("--agent", action="store_true", help="Treat input as agent definition file")
+    parser.add_argument("--skill", action="store_true", help="Treat input as skill definition file (SKILL.md)")
+    parser.add_argument("--self", action="store_true", dest="self_test",
+                        help="Auto-resolve to this skill's own SKILL.md (implies --skill)")
+    parser.add_argument("--model", default="sonnet", help="Model for generation (default: sonnet)")
+    parser.add_argument("--no-scenario-cache", action="store_true", help="Disable exact-input scenario cache")
+    parser.add_argument("--no-cache", action="store_true", dest="no_scenario_cache",
+                        help="Alias for --no-scenario-cache")
+    return parser
 
 
 def generate_scenarios(config_path: Path, is_agent: bool = False,
-                       is_skill: bool = False) -> list[dict]:
+                       is_skill: bool = False, model: str = "sonnet",
+                       use_cache: bool = True) -> tuple[list[dict], dict]:
     content = config_path.read_text()
 
     if is_skill:
@@ -43,6 +72,28 @@ def generate_scenarios(config_path: Path, is_agent: bool = False,
         context_hints += AGENT_CONTEXT
     if is_skill:
         context_hints += SKILL_CONTEXT
+
+    cache_key = stable_cache_key(
+        "scenario-generation",
+        file_sha256(config_path),
+        file_type,
+        is_agent,
+        is_skill,
+        model,
+        SYSTEM_PROMPT,
+        EXAMPLES,
+        context_hints,
+    )
+    cache_file = SCENARIO_CACHE_DIR / f"{cache_key}.json"
+    if use_cache:
+        cached = read_json_cache(cache_file)
+        if isinstance(cached, dict) and isinstance(cached.get("scenarios"), list):
+            return cached["scenarios"], {
+                "cache": "hit",
+                "cache_file": str(cache_file),
+                "elapsed_seconds": 0.0,
+                "model": model,
+            }
 
     prompt = f"""Analyze this {file_type} file and generate behavioral test scenarios for each testable rule.
 
@@ -69,7 +120,9 @@ Generate the JSON array now."""
 
     line_count = len(content.splitlines())
     timeout = max(120, line_count * 2)
-    raw = claude_pipe(prompt, model="sonnet", system_prompt=SYSTEM_PROMPT, timeout=timeout)
+    started_at = time.perf_counter()
+    raw = claude_pipe(prompt, model=model, system_prompt=SYSTEM_PROMPT, timeout=timeout)
+    elapsed_seconds = time.perf_counter() - started_at
 
     text = strip_markdown_fences(raw)
     scenarios = parse_json_response(text, expect_type=list)
@@ -84,7 +137,15 @@ Generate the JSON array now."""
             continue
         valid.append(s)
 
-    return valid
+    metadata = {
+        "cache": "miss",
+        "cache_file": str(cache_file),
+        "elapsed_seconds": elapsed_seconds,
+        "model": model,
+    }
+    if use_cache:
+        write_json_cache(cache_file, {"metadata": metadata, "scenarios": valid})
+    return valid, metadata
 
 
 def get_repo_name() -> str:
@@ -102,16 +163,7 @@ def get_repo_name() -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate behavioral test scenarios from CLAUDE.md")
-    parser.add_argument("config", nargs="?", type=Path, help="Path to CLAUDE.md or agent .md file")
-    parser.add_argument("-o", "--output", type=Path, help="Output YAML file (default: /tmp/eval-agent-md-<repo>-scenarios.yaml)")
-    parser.add_argument("--repo-name", default=None, help="Repository name for output filename (auto-detected from git)")
-    parser.add_argument("--agent", action="store_true", help="Treat input as agent definition file")
-    parser.add_argument("--skill", action="store_true", help="Treat input as skill definition file (SKILL.md)")
-    parser.add_argument("--self", action="store_true", dest="self_test",
-                        help="Auto-resolve to this skill's own SKILL.md (implies --skill)")
-    parser.add_argument("--model", default="sonnet", help="Model for generation (default: sonnet)")
-
+    parser = build_arg_parser()
     args = parser.parse_args()
 
     if args.self_test:
@@ -128,8 +180,18 @@ def main():
         sys.exit(1)
 
     print(f"Analyzing {args.config.name}...", file=sys.stderr, end="", flush=True)
-    scenarios = generate_scenarios(args.config, is_agent=args.agent, is_skill=args.skill)
-    print(f" generated {len(scenarios)} scenarios", file=sys.stderr)
+    scenarios, metadata = generate_scenarios(
+        args.config,
+        is_agent=args.agent,
+        is_skill=args.skill,
+        model=args.model,
+        use_cache=not args.no_scenario_cache,
+    )
+    print(
+        f" generated {len(scenarios)} scenarios "
+        f"[cache={metadata['cache']}, model={metadata['model']}, elapsed={metadata['elapsed_seconds']:.1f}s]",
+        file=sys.stderr,
+    )
 
     chunks = []
     for s in scenarios:
