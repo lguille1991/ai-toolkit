@@ -1,26 +1,23 @@
 ---
 name: eval-agent-md
-description: >-
-  Behavioral compliance testing for any CLAUDE.md or agent definition file.
-  Auto-generates test scenarios from your rules, runs them via LLM-as-judge
-  scoring, and reports a compliance score with per-rule pass/fail breakdown.
-  Optionally improves failing rules via automated mutation loop.
-  Use when: (1) testing whether your CLAUDE.md rules are actually followed,
-  (2) evaluating an agent definition for role-boundary compliance,
-  (3) dogfooding a skill's own SKILL.md.
-  Triggers on: "eval", "compliance test", "test my CLAUDE.md", "check rules",
-  "behavioral test", "/eval-agent-md".
+description: 'Behavioral compliance testing for any CLAUDE.md or agent definition
+  file. Auto-generates test scenarios from your rules, runs them via LLM-as-judge
+  scoring, and reports a compliance score with per-rule pass/fail breakdown. Optionally
+  improves failing rules via automated mutation loop. Use when: (1) testing whether
+  your CLAUDE.md rules are actually followed, (2) evaluating an agent definition for
+  role-boundary compliance, (3) dogfooding a skill''s own SKILL.md. Triggers on: "eval",
+  "compliance test", "test my CLAUDE.md", "check rules", "behavioral test", "/eval-agent-md".'
 metadata:
   category: assistant
   tags:
-    - testing
-    - compliance
-    - agent-md
-    - behavioral
-    - meta
-    - quality
+  - testing
+  - compliance
+  - agent-md
+  - behavioral
+  - meta
+  - quality
   status: experimental
-  version: 3
+  version: 4
 ---
 
 # eval-agent-md — Behavioral Compliance Testing
