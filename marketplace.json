@@ -529,5 +529,21 @@
       ],
       "extends": "design"
     }
+  ],
+  "experimental": [
+    {
+      "name": "eval-agent-md",
+      "source": "./skills/experimental/eval-agent-md",
+      "description": "Behavioral compliance testing for any CLAUDE.md or agent definition file. Auto-generates test scenarios, runs them via LLM-as-judge scoring, and reports compliance.",
+      "category": "assistant",
+      "tags": [
+        "testing",
+        "compliance",
+        "agent-md",
+        "behavioral",
+        "meta",
+        "quality"
+      ]
+    }
   ]
 }
