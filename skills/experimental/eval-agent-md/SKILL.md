@@ -111,6 +111,40 @@ Parse the user's `/eval-agent-md` invocation for these optional arguments:
 - `--compare-models` — cross-model comparison (haiku/sonnet/opus)
 - `--agent` — hint that the target is an agent definition file (adjusts generation style)
 
+## Examples
+
+### Positive Trigger
+
+User: "Run compliance tests against my CLAUDE.md to check if all rules are being followed."
+
+Expected behavior: Use `eval-agent-md` workflow — locate the CLAUDE.md, generate test scenarios, run behavioral tests, and report compliance results.
+
+### Non-Trigger
+
+User: "Add a new linting rule to our ESLint config."
+
+Expected behavior: Do not use this skill. Choose a more relevant skill or proceed directly.
+
+## Troubleshooting
+
+### Scenario Generation Fails
+
+- Error: `generate-scenarios.py` exits with non-zero status or produces empty output.
+- Cause: The target CLAUDE.md has no detectable rules or structured sections for the generator to parse.
+- Solution: Ensure the target file contains clearly structured rules (headings, numbered items, or labeled sections). Try a simpler file first to confirm the script works.
+
+### Low Compliance Score Despite Correct Rules
+
+- Error: Multiple scenarios report FAIL even though the CLAUDE.md rules look correct.
+- Cause: Single-run mode (`--runs 1`) is susceptible to LLM variance. The model may not follow rules consistently in a single sample.
+- Solution: Re-run with `--runs 3` for majority-vote scoring to reduce noise.
+
+### Scripts Not Found
+
+- Error: `No such file or directory` when running skill scripts.
+- Cause: The skill directory path is not resolving correctly, or scripts lack execute permissions.
+- Solution: Verify the skill is installed at the expected path and run `chmod +x` on the scripts in the `scripts/` directory.
+
 ## Notes
 
 - All scripts use `uv run --script` — no pip install needed
