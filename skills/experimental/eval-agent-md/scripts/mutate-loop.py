@@ -230,6 +230,7 @@ def main():
 
     iteration_log = []
     current_content = args.target.read_text()
+    any_mutations_kept = False
 
     for i in range(1, args.max_iterations + 1):
         if not failing:
@@ -274,9 +275,10 @@ def main():
 
         try:
             _progress(i, args.max_iterations, target_scenario["id"], "A/B test", t_start, stats)
-            print("  Running A/B comparison...", flush=True)
+            scoped_scenario_ids = [target_scenario["id"]]
+            print(f"  A/B test (scoped to: {target_scenario['id']})...", flush=True)
             ab_result, ab_stdout = run_ab(args.target, mutated_path, args.scenarios_file,
-                                          args.scenarios, args.runs, args.model, args.timeout)
+                                          scoped_scenario_ids, args.runs, args.model, args.timeout)
             print(ab_stdout)
 
             delta_line = [l for l in ab_stdout.split("\n") if "Delta:" in l]
@@ -298,6 +300,7 @@ def main():
 
             if delta > 0:
                 stats["kept"] += 1
+                any_mutations_kept = True
                 print(f"  KEEP — delta: {delta:+d}")
                 if args.apply:
                     args.target.write_text(mutated_content)
@@ -317,11 +320,24 @@ def main():
             mutated_path.unlink(missing_ok=True)
 
         if args.apply and delta > 0:
-            _progress(i, args.max_iterations, target_scenario["id"], "re-eval", t_start, stats)
+            _progress(i, args.max_iterations, target_scenario["id"], "full-suite validation", t_start, stats)
+            print("  Full-suite validation (catch regressions)...", flush=True)
             reeval = run_eval(args.target, args.scenarios_file, args.scenarios, args.runs, args.model, args.timeout)
             failing = find_failing_scenarios(reeval)
         else:
             failing = failing[1:]
+
+    # Final full-suite validation if mutations were kept and not already done
+    if args.apply and any_mutations_kept and failing is not None:
+        print(f"\n{'=' * 60}")
+        print("  Final full-suite validation")
+        print(f"{'=' * 60}")
+        print("  Running full-suite validation (catch regressions)...", flush=True)
+        final_results = run_eval(args.target, args.scenarios_file, args.scenarios, args.runs, args.model, args.timeout)
+        final_passed = final_results["summary"]["passed"]
+        final_total = final_results["summary"]["total"]
+        print(f"  Final score: {final_passed}/{final_total} ({_fmt_elapsed(t_start)})")
+        failing = find_failing_scenarios(final_results)
 
     _print_summary_table(iteration_log)
     print(f"\n  Total elapsed: {_fmt_elapsed(t_start)}")

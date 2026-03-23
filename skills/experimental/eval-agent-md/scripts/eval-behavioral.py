@@ -15,20 +15,26 @@ Usage:
     ./eval-behavioral.py --scenarios-file s.yaml --claude-md config.md --workers 4
 """
 import argparse
+import hashlib
 import json
+import os
 import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
+import subprocess
 
 import yaml
 
 from _common import claude_pipe, strip_markdown_fences
 
 RESULTS_DIR = Path(__file__).parent / "results"
+JUDGE_CACHE_DIR = Path(__file__).parent / "results" / "judge_cache"
 
 _print_lock = threading.Lock()
+_cache_stats = {"hits": 0, "misses": 0}
+_cache_stats_lock = threading.Lock()
 
 
 def _tprint(*args, **kwargs):
@@ -62,7 +68,23 @@ def load_scenarios(path: Path, ids: list[str] | None = None) -> list[dict]:
     return scenarios
 
 
-def judge(scenario: dict, response: str, timeout: int = 300) -> dict:
+def judge(scenario: dict, response: str, timeout: int = 300, use_cache: bool = True) -> dict:
+    # Compute cache key from system prompt, scenario rule/prompt, and response
+    cache_key_source = f"{JUDGE_SYSTEM}|{scenario['rule']}|{scenario['prompt']}|{response}"
+    cache_key = hashlib.sha256(cache_key_source.encode()).hexdigest()
+    cache_file = JUDGE_CACHE_DIR / f"{cache_key}.json"
+
+    # Check cache first if enabled
+    if use_cache and cache_file.exists():
+        try:
+            cached = json.loads(cache_file.read_text())
+            with _cache_stats_lock:
+                _cache_stats["hits"] += 1
+            return cached
+        except Exception:
+            pass  # Fall through to fresh judgment if cache read fails
+
+    # Cache miss or disabled; compute fresh verdict
     judge_prompt = f"""## Rule Being Tested
 {scenario['rule']}
 
@@ -82,18 +104,32 @@ def judge(scenario: dict, response: str, timeout: int = 300) -> dict:
 
     text = strip_markdown_fences(raw)
     try:
-        return json.loads(text)
+        verdict = json.loads(text)
     except json.JSONDecodeError:
-        return {
+        verdict = {
             "verdict": "ERROR",
             "evidence": f"Judge returned non-JSON: {text[:200]}",
             "triggered_criteria": [],
             "triggered_fail_signals": [],
         }
 
+    # Save to cache if enabled and not an ERROR verdict
+    if use_cache and verdict.get("verdict") != "ERROR":
+        try:
+            JUDGE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            cache_file.write_text(json.dumps(verdict))
+        except Exception:
+            pass  # Silently fail cache write; don't block judgment
+
+    if use_cache:
+        with _cache_stats_lock:
+            _cache_stats["misses"] += 1
+
+    return verdict
+
 
 def run_scenario(model: str, system_file: Path, scenario: dict, runs: int,
-                 timeout: int = 300) -> dict:
+                 timeout: int = 300, use_cache: bool = True) -> dict:
     effective_file = system_file
     if scenario.get("agent_md"):
         agent_path = Path(scenario["agent_md"]).expanduser()
@@ -105,7 +141,7 @@ def run_scenario(model: str, system_file: Path, scenario: dict, runs: int,
     verdicts = []
     for r in range(runs):
         response = claude_pipe(scenario["prompt"], model=model, system_file=effective_file, timeout=timeout)
-        result = judge(scenario, response, timeout=timeout)
+        result = judge(scenario, response, timeout=timeout, use_cache=use_cache)
         result["response_preview"] = response[:500]
         result["run"] = r + 1
         verdicts.append(result)
@@ -123,7 +159,7 @@ def run_scenario(model: str, system_file: Path, scenario: dict, runs: int,
 
 
 def run_scenarios(scenarios: list[dict], model: str, system_file: Path,
-                  runs: int, timeout: int, max_workers: int = 2) -> list[dict]:
+                  runs: int, timeout: int, max_workers: int = 2, use_cache: bool = True) -> list[dict]:
     total = len(scenarios)
     results_by_index: dict[int, dict] = {}
     workers = min(max_workers, total)
@@ -131,7 +167,7 @@ def run_scenarios(scenarios: list[dict], model: str, system_file: Path,
     with ThreadPoolExecutor(max_workers=workers) as pool:
         future_to_idx = {}
         for i, s in enumerate(scenarios):
-            fut = pool.submit(run_scenario, model, system_file, s, runs, timeout)
+            fut = pool.submit(run_scenario, model, system_file, s, runs, timeout, use_cache)
             future_to_idx[fut] = i
 
         for fut in as_completed(future_to_idx):
@@ -150,6 +186,10 @@ def run_scenarios(scenarios: list[dict], model: str, system_file: Path,
                 }
             _tprint(f"[{idx + 1}/{total}] {r['id']:<25} {r['final_verdict']}  ({r['passes']}/{r['runs']})")
             results_by_index[idx] = r
+
+    # Print cache statistics if caching was enabled
+    if use_cache:
+        _tprint(f"  Judge cache: {_cache_stats['hits']} hits, {_cache_stats['misses']} misses")
 
     return [results_by_index[i] for i in range(total)]
 
@@ -193,6 +233,31 @@ def save_results(results: list[dict], model: str, label: str = ""):
     return path
 
 
+def _auto_workers() -> int:
+    """Pick worker count from available hardware. I/O-bound, so cores matter less than RAM."""
+    cores = os.cpu_count() or 4
+    # Each claude -p subprocess uses ~50MB; leave 2GB headroom
+    try:
+        # macOS
+        mem_bytes = int(subprocess.check_output(["sysctl", "-n", "hw.memsize"]).strip())
+        avail_gb = mem_bytes / 1e9 * 0.6  # assume 60% available
+    except Exception:
+        try:
+            # Linux
+            with open("/proc/meminfo") as f:
+                for line in f:
+                    if line.startswith("MemAvailable:"):
+                        avail_gb = int(line.split()[1]) / 1e6
+                        break
+                else:
+                    avail_gb = 8  # fallback
+        except Exception:
+            avail_gb = 8  # fallback
+    max_by_ram = max(2, int((avail_gb - 2) / 0.05))
+    workers = min(max_by_ram, cores // 2, 6)
+    return max(2, workers)  # floor of 2
+
+
 def main():
     parser = argparse.ArgumentParser(description="Behavioral compliance tests for CLAUDE.md")
     parser.add_argument("scenarios", nargs="*", help="Scenario IDs to run (default: all)")
@@ -202,17 +267,21 @@ def main():
     parser.add_argument("--mutate", type=Path, help="Mutated config for A/B comparison")
     parser.add_argument("--compare-models", action="store_true", help="Run across haiku/sonnet/opus")
     parser.add_argument("--scenarios-file", type=Path, required=True, help="Path to scenarios YAML")
-    parser.add_argument("--workers", type=int, default=2, help="Max concurrent scenarios (default: 2)")
+    parser.add_argument("--workers", type=int, default=0, help="Max concurrent scenarios (0=auto, default: auto)")
     parser.add_argument("--timeout", type=int, default=240, help="Per-call claude -p timeout in seconds (default: 240)")
+    parser.add_argument("--no-cache", action="store_true", help="Disable judge verdict cache")
 
     args = parser.parse_args()
+    if args.workers == 0:
+        args.workers = _auto_workers()
     scenarios = load_scenarios(args.scenarios_file, args.scenarios or None)
+    use_cache = not args.no_cache
 
     if not scenarios:
         print("No scenarios to run.", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Testing {len(scenarios)} scenarios x {args.runs} run(s)  [workers={args.workers}, timeout={args.timeout}s]")
+    print(f"Testing {len(scenarios)} scenarios x {args.runs} run(s)  [workers={args.workers}, timeout={args.timeout}s, cache={'on' if use_cache else 'off'}]")
     print(f"Subject: claude -p --model {args.model}")
     print(f"Judge:   claude -p --model haiku")
     print(f"Config:  {args.claude_md}")
@@ -226,7 +295,7 @@ def main():
             print(f"  Model: {m}")
             print(f"{'=' * 60}")
             model_results = run_scenarios(scenarios, m, args.claude_md,
-                                          args.runs, args.timeout, args.workers)
+                                          args.runs, args.timeout, args.workers, use_cache)
             print_results(model_results, f"Results — {m}")
             all_model_results[m] = model_results
 
@@ -275,14 +344,14 @@ def main():
         sys.exit(0)
 
     results = run_scenarios(scenarios, args.model, args.claude_md,
-                            args.runs, args.timeout, args.workers)
+                            args.runs, args.timeout, args.workers, use_cache)
     base_passed, _ = print_results(results, f"Results — {args.claude_md.name}")
     save_results(results, args.model, "baseline")
 
     if args.mutate:
         print(f"\nRunning mutated config: {args.mutate}")
         mutated_results = run_scenarios(scenarios, args.model, args.mutate,
-                                        args.runs, args.timeout, args.workers)
+                                        args.runs, args.timeout, args.workers, use_cache)
 
         print_results(results, f"Baseline — {args.claude_md.name}")
         mut_passed, _ = print_results(mutated_results, f"Mutated — {args.mutate.name}")
