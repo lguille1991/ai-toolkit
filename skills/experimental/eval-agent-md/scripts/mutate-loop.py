@@ -93,7 +93,7 @@ def run_eval(target: Path, scenarios_file: Path, scenario_ids: list[str] | None,
     if scenario_ids:
         cmd.extend(scenario_ids)
     n = _count_scenarios(scenarios_file, scenario_ids)
-    timeout = max(300, n * runs * 60 + 120)
+    timeout = max(300, n * runs * 30 + 60)
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     if result.returncode != 0:
         print(f"  Eval stderr: {result.stderr[:300]}", file=sys.stderr)
@@ -112,7 +112,7 @@ def run_ab(baseline: Path, mutated: Path, scenarios_file: Path,
     if scenario_ids:
         cmd.extend(scenario_ids)
     n = _count_scenarios(scenarios_file, scenario_ids)
-    timeout = max(300, n * runs * 60 * 2 + 120)  # 2x for baseline + mutated
+    timeout = max(300, n * runs * 30 * 2 + 60)  # 2x for baseline + mutated
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     return result, result.stdout
 
@@ -144,7 +144,7 @@ def generate_mutation(config_content: str, scenario: dict, scenarios_file: Path)
     )
 
     line_count = len(config_content.splitlines())
-    timeout = max(120, line_count // 5)
+    timeout = max(60, line_count)
     raw = claude_pipe(prompt, model="sonnet", timeout=timeout)
     text = raw.strip()
     if text.startswith("```"):

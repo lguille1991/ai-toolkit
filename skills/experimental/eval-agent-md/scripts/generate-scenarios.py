@@ -161,7 +161,7 @@ def generate_scenarios(config_path: Path, is_agent: bool = False) -> list[dict]:
 Generate the JSON array now."""
 
     line_count = len(content.splitlines())
-    timeout = max(120, line_count // 5)
+    timeout = max(120, line_count * 2)
     raw = claude_pipe(prompt, timeout=timeout)
 
     # Extract JSON from response
