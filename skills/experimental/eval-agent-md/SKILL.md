@@ -23,6 +23,14 @@ metadata:
 
 ## Workflow
 
+### Progress Reporting
+
+This skill runs long operations (30s-5min per step). **Always keep the user informed:**
+- Before each step, tell the user what is about to happen and roughly how long it takes
+- Run all scripts via the Bash tool (never capture output) so per-scenario progress streams to the user in real time
+- After each step completes, give a brief transition summary before starting the next step
+- Set an appropriate timeout on Bash calls (120s for generation, 600s for eval/mutation)
+
 ### Step 1: Locate the target file
 
 Find the CLAUDE.md to test. Priority order:
@@ -35,15 +43,15 @@ Read the file and confirm with the user: "I found your CLAUDE.md at [path] ([N] 
 
 ### Step 2: Generate test scenarios
 
-Run the scenario generator script bundled with this skill:
+Tell the user: "Generating test scenarios from [filename]... this calls `claude -p --model sonnet` and typically takes 30-60 seconds."
+
+Run the scenario generator script bundled with this skill. **IMPORTANT: Do NOT capture output — run via the Bash tool so the user sees progress lines in real time:**
 
 ```bash
 [SKILL_DIR]/scripts/generate-scenarios.py [TARGET_FILE]
 ```
 
 The script auto-detects the repository name from git and saves to `/tmp/eval-agent-md-<repo>-scenarios.yaml` (e.g., `/tmp/eval-agent-md-my-project-scenarios.yaml`). Override with `--repo-name NAME` or `-o PATH`.
-
-This uses `claude -p --model sonnet` to analyze the CLAUDE.md and generate test scenarios. It typically takes 30-60 seconds.
 
 After generation, read the output file and show the user a summary:
 - How many scenarios were generated
@@ -53,6 +61,10 @@ After generation, read the output file and show the user a summary:
 Ask the user: "Generated [N] test scenarios. Ready to run? (Or edit/skip any?)"
 
 ### Step 3: Run behavioral tests
+
+Tell the user: "Running [N] scenarios x [runs] run(s) against [model]... each scenario calls `claude -p` twice (subject + judge), so this takes a few minutes. You'll see per-scenario results as they complete."
+
+**IMPORTANT: Do NOT capture output — run via the Bash tool so the user sees per-scenario progress (`[1/N] scenario_id... PASS/FAIL (Xs)`) in real time:**
 
 ```bash
 [SKILL_DIR]/scripts/eval-behavioral.py \
@@ -88,6 +100,10 @@ Score: 8/10 (80%)
 ### Step 5: Improve (optional)
 
 If the user says "improve", "fix", or passed `--improve`:
+
+Tell the user: "Starting mutation loop (dry-run) — this iteratively generates wording fixes for failing rules and A/B tests them. Each iteration takes 1-2 minutes."
+
+**IMPORTANT: Do NOT capture output — run via the Bash tool so the user sees iteration progress in real time:**
 
 ```bash
 [SKILL_DIR]/scripts/mutate-loop.py \
