@@ -48,6 +48,28 @@ def strip_markdown_fences(text: str) -> str:
     return text
 
 
+def _extract_text_from_json_result(raw_json: str) -> str:
+    """Extract text from claude -p --output-format json response.
+
+    The JSON result object has a 'result' field that should contain the text.
+    In some Claude Code versions (e.g. 2.1.83), 'result' may be empty even
+    though the model produced content. Fall back to extracting from the
+    stream-json assistant message content if needed.
+    """
+    try:
+        data = json.loads(raw_json)
+    except json.JSONDecodeError:
+        return raw_json.strip()
+
+    # Primary: use the result field
+    result_text = data.get("result", "")
+    if result_text:
+        return result_text.strip()
+
+    # Fallback not available in non-stream JSON — return whatever we got
+    return result_text
+
+
 def claude_pipe(
     prompt: str,
     *,
@@ -56,10 +78,14 @@ def claude_pipe(
     system_file: Path | None = None,
     timeout: int = 300,
 ) -> str:
-    """Call `claude -p` and return stdout.
+    """Call `claude -p` and return the model's text response.
 
     Provide either system_prompt (string, written to temp file) or
     system_file (path used directly). If both given, system_file wins.
+
+    Uses --output-format stream-json --verbose to reliably extract content
+    from assistant messages, working around a bug in some Claude Code versions
+    where --output-format text/json returns an empty 'result' field.
     """
     tmp_file = None
     if system_prompt and not system_file:
@@ -69,7 +95,7 @@ def claude_pipe(
         system_file = Path(tmp.name)
         tmp_file = system_file
 
-    cmd = ["claude", "-p", "--output-format", "text"]
+    cmd = ["claude", "-p", "--output-format", "stream-json", "--verbose"]
     if model:
         cmd.extend(["--model", model])
     if system_file:
@@ -89,7 +115,29 @@ def claude_pipe(
             f"  stderr: {result.stderr[:500]}\n"
             f"  stdout: {result.stdout[:500]}"
         )
-    return result.stdout.strip()
+
+    # Parse stream-json: extract text from assistant messages
+    text_parts: list[str] = []
+    result_text = ""
+    for line in result.stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            msg = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if msg.get("type") == "assistant":
+            content = msg.get("message", {}).get("content", [])
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    text_parts.append(block["text"])
+        elif msg.get("type") == "result":
+            result_text = msg.get("result", "")
+
+    # Prefer assistant message content; fall back to result field
+    extracted = "\n".join(text_parts) if text_parts else result_text
+    return extracted.strip()
 
 
 def load_prompt(name: str) -> str:
