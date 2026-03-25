@@ -26,9 +26,10 @@ metadata:
 
 1. Reads a CLAUDE.md (or agent .md file)
 2. Auto-generates behavioral test scenarios for each rule it finds
-3. Runs each scenario via `claude -p` with LLM-as-judge scoring
-4. Reports a compliance score with per-rule pass/fail breakdown
-5. Optionally runs an automated mutation loop to improve failing rules
+3. Optionally generates integration scenarios that test multiple rules interacting (`--holistic`)
+4. Runs each scenario via `claude -p` with LLM-as-judge scoring
+5. Reports a compliance score with per-rule (and integration) pass/fail breakdown
+6. Optionally runs an automated mutation loop to improve failing rules
 
 ## Workflow
 
@@ -71,6 +72,8 @@ uv run --script [SKILL_DIR]/scripts/generate-scenarios.py [TARGET_FILE]
 # uv run --script [SKILL_DIR]/scripts/generate-scenarios.py --skill [TARGET_FILE]
 # For self-testing (implies --skill):
 # uv run --script [SKILL_DIR]/scripts/generate-scenarios.py --self
+# To also generate integration scenarios (multi-rule interaction tests):
+# uv run --script [SKILL_DIR]/scripts/generate-scenarios.py --holistic [TARGET_FILE]
 ```
 
 The script auto-detects the repository name from git and saves to `/tmp/eval-agent-md-<repo>-scenarios.yaml` (e.g., `/tmp/eval-agent-md-my-project-scenarios.yaml`). Override with `--repo-name NAME` or `-o PATH`.
@@ -118,12 +121,21 @@ Print a compliance report:
 ```
 ## Compliance Report — [filename]
 
-Score: 8/10 (80%)
+### Per-rule: 8/10 (80%)
 
 | Scenario | Rule | Verdict | Evidence |
 |----------|------|---------|----------|
 | gate1_think | GATE-1 | PASS | Lists assumptions before code |
 | ... | ... | ... | ... |
+
+### Integration: 3/5 (60%)    ← only shown with --holistic
+
+| Scenario | Rules Tested | Verdict | Evidence |
+|----------|--------------|---------|----------|
+| integration_gate1_tdd | GATE-1, TDD | PASS | Assumptions before test before impl |
+| ... | ... | ... | ... |
+
+### Combined: 11/15 (73%)  [per-rule: 8/10, integration: 3/5]
 
 ### Failing Rules
 - [rule]: [what went wrong] — suggested fix: [brief suggestion]
@@ -160,6 +172,7 @@ Parse the user's `/eval-agent-md` invocation for these common options:
 - `--model MODEL` — model for test subject (default: sonnet)
 - `--self` — test this skill's own SKILL.md (implies `--skill`)
 - `--skill` / `--agent` — hint the target type for better scenario generation
+- `--holistic` — also generate integration scenarios that test multiple rules interacting (priority ordering, conflict resolution, cumulative compliance)
 
 See `references/script-reference.md` for the full flag reference (caching, workers, compare-models, timeouts).
 

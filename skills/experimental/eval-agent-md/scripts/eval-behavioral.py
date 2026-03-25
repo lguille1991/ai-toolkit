@@ -77,7 +77,15 @@ def load_scenarios(path: Path, ids: list[str] | None = None) -> list[dict]:
         if agent_excluded:
             names = ", ".join(s["id"] for s in agent_excluded)
             print(f"Note: skipping {len(agent_excluded)} agent scenarios: {names}")
+    # Ensure all scenarios have a 'rule' field (integration scenarios backfill from rules_tested)
+    for s in scenarios:
+        if "rule" not in s and "rules_tested" in s:
+            s["rule"] = ", ".join(s["rules_tested"])
     return scenarios
+
+
+def is_integration(scenario: dict) -> bool:
+    return scenario.get("type") == "integration"
 
 
 def judge(scenario: dict, response: str, timeout: int = 300, use_cache: bool = True) -> dict:
@@ -210,7 +218,7 @@ def run_scenario(model: str, system_file: Path, scenario: dict, runs: int,
         verdicts.append(result)
 
     passes = sum(1 for v in verdicts if v["verdict"] == "PASS")
-    return {
+    result = {
         "id": scenario["id"],
         "rule": scenario["rule"],
         "runs": runs,
@@ -227,6 +235,10 @@ def run_scenario(model: str, system_file: Path, scenario: dict, runs: int,
             "subject_misses": runs - subject_cache_hits,
         },
     }
+    if is_integration(scenario):
+        result["type"] = "integration"
+        result["rules_tested"] = scenario.get("rules_tested", [])
+    return result
 
 
 def run_scenarios(scenarios: list[dict], model: str, system_file: Path,
@@ -257,6 +269,9 @@ def run_scenarios(scenarios: list[dict], model: str, system_file: Path,
                                  "triggered_criteria": [], "triggered_fail_signals": []}
                                 for j in range(runs)],
                 }
+                if is_integration(s):
+                    r["type"] = "integration"
+                    r["rules_tested"] = s.get("rules_tested", [])
             _tprint(f"[{idx + 1}/{total}] {r['id']:<25} {r['final_verdict']}  ({r['passes']}/{r['runs']})")
             results_by_index[idx] = r
 
@@ -274,23 +289,49 @@ def run_scenarios(scenarios: list[dict], model: str, system_file: Path,
     return [results_by_index[i] for i in range(total)], metrics
 
 
-def print_results(results: list[dict], label: str = "", metrics: dict | None = None):
-    if label:
-        print(f"\n{'=' * 60}")
-        print(f"  {label}")
-        print(f"{'=' * 60}")
-
+def _print_result_group(results: list[dict], group_label: str | None = None):
+    """Print a group of results (per-rule or integration)."""
+    if group_label:
+        print(f"\n  --- {group_label} ---")
     total = len(results)
     passed = sum(1 for r in results if r["final_verdict"] == "PASS")
-
     for r in results:
         icon = "PASS" if r["final_verdict"] == "PASS" else "FAIL"
         votes = f"{r['passes']}/{r['runs']}"
         print(f"  [{icon}] {r['id']:<25} ({r['rule']:<20}) votes: {votes}")
         for d in r["details"]:
             print(f"         run {d['run']}: {d['verdict']} — {d.get('evidence', 'no evidence')}")
+    if total > 0:
+        print(f"  {group_label or 'Score'}: {passed}/{total} ({passed / total * 100:.0f}%)")
+    return passed, total
 
-    print(f"\n  Score: {passed}/{total} ({passed / total * 100:.0f}%)")
+
+def print_results(results: list[dict], label: str = "", metrics: dict | None = None):
+    if label:
+        print(f"\n{'=' * 60}")
+        print(f"  {label}")
+        print(f"{'=' * 60}")
+
+    per_rule = [r for r in results if not r.get("type") == "integration"]
+    integration = [r for r in results if r.get("type") == "integration"]
+
+    total = len(results)
+    passed = sum(1 for r in results if r["final_verdict"] == "PASS")
+
+    if integration:
+        pr_passed, pr_total = _print_result_group(per_rule, "Per-rule")
+        int_passed, int_total = _print_result_group(integration, "Integration")
+        print(f"\n  Combined: {passed}/{total} ({passed / total * 100:.0f}%)"
+              f"  [per-rule: {pr_passed}/{pr_total}, integration: {int_passed}/{int_total}]")
+    else:
+        for r in results:
+            icon = "PASS" if r["final_verdict"] == "PASS" else "FAIL"
+            votes = f"{r['passes']}/{r['runs']}"
+            print(f"  [{icon}] {r['id']:<25} ({r['rule']:<20}) votes: {votes}")
+            for d in r["details"]:
+                print(f"         run {d['run']}: {d['verdict']} — {d.get('evidence', 'no evidence')}")
+        print(f"\n  Score: {passed}/{total} ({passed / total * 100:.0f}%)")
+
     if metrics:
         print(
             "  Timing:"

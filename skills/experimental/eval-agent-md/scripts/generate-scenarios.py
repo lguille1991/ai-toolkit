@@ -32,6 +32,7 @@ from _common import (
 )
 
 SYSTEM_PROMPT = load_prompt("system.md")
+SYSTEM_PROMPT_INTEGRATION = load_prompt("system-integration.md")
 EXAMPLES = load_prompt("examples.md")
 AGENT_CONTEXT = load_prompt("context-agent.md")
 SKILL_CONTEXT = load_prompt("context-skill.md")
@@ -52,6 +53,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-scenario-cache", action="store_true", help="Disable exact-input scenario cache")
     parser.add_argument("--no-cache", action="store_true", dest="no_scenario_cache",
                         help="Alias for --no-scenario-cache")
+    parser.add_argument("--holistic", action="store_true",
+                        help="Also generate integration scenarios that test multiple rules interacting")
     return parser
 
 
@@ -148,6 +151,99 @@ Generate the JSON array now."""
     return valid, metadata
 
 
+def generate_integration_scenarios(config_path: Path, is_agent: bool = False,
+                                    is_skill: bool = False, model: str = "sonnet",
+                                    use_cache: bool = True) -> tuple[list[dict], dict]:
+    """Generate integration scenarios that test multiple rules interacting."""
+    content = config_path.read_text()
+
+    if is_skill:
+        file_type = 'skill definition'
+    elif is_agent:
+        file_type = 'agent definition'
+    else:
+        file_type = 'CLAUDE.md configuration'
+
+    context_hints = ""
+    if is_agent:
+        context_hints += AGENT_CONTEXT
+    if is_skill:
+        context_hints += SKILL_CONTEXT
+
+    cache_key = stable_cache_key(
+        "integration-scenario-generation",
+        file_sha256(config_path),
+        file_type,
+        is_agent,
+        is_skill,
+        model,
+        SYSTEM_PROMPT_INTEGRATION,
+        context_hints,
+    )
+    cache_file = SCENARIO_CACHE_DIR / f"{cache_key}.json"
+    if use_cache:
+        cached = read_json_cache(cache_file)
+        if isinstance(cached, dict) and isinstance(cached.get("scenarios"), list):
+            return cached["scenarios"], {
+                "cache": "hit",
+                "cache_file": str(cache_file),
+                "elapsed_seconds": 0.0,
+                "model": model,
+            }
+
+    prompt = f"""Analyze this {file_type} file and generate integration test scenarios that exercise multiple rules simultaneously.
+
+## Config File: {config_path.name}
+```
+{content}
+```
+
+{context_hints}
+
+## Instructions
+1. Identify rules that can realistically co-occur in a single user request
+2. Focus on combinations where priority, ordering, or potential conflicts matter
+3. Generate 3-5 integration scenarios, each testing 2-4 rules
+4. Make prompts realistic and complex enough that multiple rules naturally apply
+5. Pass criteria MUST check rule interactions (ordering, priority, conflict resolution), not just individual presence
+6. Include code snippets inline in prompts when needed
+
+Generate the JSON array now."""
+
+    line_count = len(content.splitlines())
+    # Integration scenarios require more reasoning time than per-rule (analyzing interactions)
+    timeout = max(180, line_count * 3)
+    started_at = time.perf_counter()
+    raw = claude_pipe(prompt, model=model, system_prompt=SYSTEM_PROMPT_INTEGRATION, timeout=timeout)
+    elapsed_seconds = time.perf_counter() - started_at
+
+    text = strip_markdown_fences(raw)
+    scenarios = parse_json_response(text, expect_type=list)
+
+    required = {"id", "type", "rules_tested", "prompt", "pass_criteria", "fail_signals"}
+    valid = []
+    for s in scenarios:
+        missing = required - set(s.keys())
+        if missing:
+            print(f"  Warning: integration scenario '{s.get('id', '?')}' missing {missing}, skipping", file=sys.stderr)
+            continue
+        # Ensure type is set correctly
+        s["type"] = "integration"
+        # Backfill 'rule' as comma-joined rules_tested for compatibility with eval-behavioral
+        s.setdefault("rule", ", ".join(s["rules_tested"]))
+        valid.append(s)
+
+    metadata = {
+        "cache": "miss",
+        "cache_file": str(cache_file),
+        "elapsed_seconds": elapsed_seconds,
+        "model": model,
+    }
+    if use_cache:
+        write_json_cache(cache_file, {"metadata": metadata, "scenarios": valid})
+    return valid, metadata
+
+
 def get_repo_name() -> str:
     """Detect repository name from git, fall back to current directory name."""
     try:
@@ -188,10 +284,26 @@ def main():
         use_cache=not args.no_scenario_cache,
     )
     print(
-        f" generated {len(scenarios)} scenarios "
+        f" generated {len(scenarios)} per-rule scenarios "
         f"[cache={metadata['cache']}, model={metadata['model']}, elapsed={metadata['elapsed_seconds']:.1f}s]",
         file=sys.stderr,
     )
+
+    if args.holistic:
+        print(f"Generating integration scenarios...", file=sys.stderr, end="", flush=True)
+        integration, int_metadata = generate_integration_scenarios(
+            args.config,
+            is_agent=args.agent,
+            is_skill=args.skill,
+            model=args.model,
+            use_cache=not args.no_scenario_cache,
+        )
+        print(
+            f" generated {len(integration)} integration scenarios "
+            f"[cache={int_metadata['cache']}, model={int_metadata['model']}, elapsed={int_metadata['elapsed_seconds']:.1f}s]",
+            file=sys.stderr,
+        )
+        scenarios.extend(integration)
 
     chunks = []
     for s in scenarios:
