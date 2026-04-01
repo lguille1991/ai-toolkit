@@ -60,6 +60,7 @@ export default defineConfig(
 	//    eslint-plugin-regexp, @eslint-community/eslint-plugin-eslint-comments
 	// ============================================================
 	eslint.configs.recommended,
+	...tseslint.configs.recommended,
 	...tseslint.configs.recommendedTypeChecked,
 	deMorgan.configs.recommended,
 	unicorn.configs.recommended,
@@ -467,6 +468,15 @@ export default defineConfig(
 			// Config files commonly use anonymous default exports
 			"unicorn/no-anonymous-default-export": "off",
 		},
+	},
+
+	// ============================================================
+	// 📄 JAVASCRIPT FILES (disable type-aware rules)
+	// Required for mixed TS/JS repos — JS files aren't covered by tsconfig
+	// ============================================================
+	{
+		files: ["**/*.js", "**/*.mjs", "**/*.cjs", "**/*.jsx"],
+		...tseslint.configs.disableTypeChecked,
 	},
 
 	// ============================================================

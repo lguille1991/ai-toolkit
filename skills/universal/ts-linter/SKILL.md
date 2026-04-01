@@ -23,7 +23,7 @@ metadata:
   - code-quality
   - static-analysis
   status: ready
-  version: 3
+  version: 4
 ---
 
 # TypeScript Linter Skill
@@ -129,7 +129,9 @@ Adapt file globs to match the actual project structure (e.g., `src/server/` inst
 
 If the project already has an ESLint config, read it first. Do not blindly overwrite —
 merge the new rules into the existing structure. If it's `.eslintrc.*` (legacy format),
-offer to migrate to flat config. Preserve project-specific rules. Show the user a diff.
+**always migrate to flat config** — ESLint v10+ removed eslintrc support entirely.
+Extract the existing rules and recreate them as flat config entries. Preserve
+project-specific rules. Show the user a diff.
 
 ---
 
@@ -139,7 +141,11 @@ After writing the config, immediately verify it loads. Find any `.ts` or `.tsx` 
 project to test against — do not assume `src/index.ts` exists:
 
 ```bash
-TEST_FILE=$(find src apps packages lib . -name '*.ts' -o -name '*.tsx' 2>/dev/null | grep -v node_modules | head -1)
+TEST_FILE=$(find src apps packages lib . -maxdepth 4 \( -name '*.ts' -o -name '*.tsx' \) 2>/dev/null | grep -v node_modules | head -1)
+if [[ -z "$TEST_FILE" ]]; then
+  echo "No .ts/.tsx files found to test config against"
+  exit 1
+fi
 npx eslint --print-config "$TEST_FILE" > /dev/null 2>&1
 echo $?
 ```
@@ -339,22 +345,34 @@ If the user wants Claude Code hooks to auto-lint after every edit, read
 
 ## Examples
 
+### Positive Trigger
+
+User: "Add eslint to this TypeScript project and fix all linting errors"
+
+Expected behavior: Runs the full 9-step workflow — detects project, generates strict config, installs dependencies, auto-fixes, manually remediates, and verifies clean.
+
+### Non-Trigger
+
+User: "Format this Python file with black and isort"
+
+Expected behavior: Do not use this skill. It only handles ESLint for TypeScript/JavaScript projects.
+
 **Example 1: Greenfield setup**
 Input: "Add eslint to this project"
 Detection: React + Vitest + pnpm monorepo
-Output: Generates config with React/Vitest/monorepo sections, installs 18 devDependencies
+Expected behavior: Generates config with React/Vitest/monorepo sections, installs 18 devDependencies
 via pnpm, runs auto-fix (fixes 47 errors), manually fixes 12 remaining, verifies clean.
 
 **Example 2: Fix existing warnings**
 Input: "Fix all the linting warnings in our codebase"
 Detection: Existing `eslint.config.mjs` already present
-Output: Reads existing config, runs `categorize-errors.js` (finds 83 errors across 6 rules),
+Expected behavior: Reads existing config, runs `categorize-errors.js` (finds 83 errors across 6 rules),
 fixes in priority order, verifies `tsc` and `vitest run` pass after each batch.
 
 **Example 3: Strict upgrade**
 Input: "Make our linter stricter, we have too many any types"
 Detection: React Native + Expo + Drizzle + existing loose config
-Output: Merges strict rules into existing config (adds sonarjs, unicorn, security, type-aware
+Expected behavior: Merges strict rules into existing config (adds sonarjs, unicorn, security, type-aware
 checking), installs 8 new plugins, auto-fixes 120 errors, manually replaces 34 `any` types,
 renames 7 files to kebab-case in a separate batch, verifies clean.
 
@@ -380,7 +398,7 @@ renames 7 files to kebab-case in a separate batch, verifies clean.
 
 - Error: Auto-fix introduces new errors
 - Cause: Rule conflict between plugins (e.g., unicorn vs react)
-- Solution: Check which rule is new, add an override in the rules section to disable the conflicting one
+- Solution: Identify which plugin owns the conflicting rule and configure it in the reference config's dedicated section to resolve the conflict (this is config structure, not rule suppression)
 
 - Error: Hook fires but Claude ignores output
 - Cause: Missing `"decision": "block"` in JSON
@@ -411,8 +429,8 @@ renames 7 files to kebab-case in a separate batch, verifies clean.
 | `scripts/detect-project.sh` | Parses package.json with Node.js, outputs JSON with module flags, commands, globs | Step 1 (detection) |
 | `scripts/generate-install-cmd.sh` | Takes detection JSON, outputs categorized install command | Step 4 (install) |
 | `scripts/categorize-errors.js` | Groups ESLint JSON output by rule, shows fix priority (Node.js, no Python needed) | Step 5 (after auto-fix) |
-| `scripts/lint-typecheck-hook.sh` | Claude Code PostToolUse hook with circuit breaker | Step 8 (Claude Code only) |
-| `scripts/validate-setup.sh` | Runs 19 checks to verify the entire setup works | Step 8 (after hook setup) |
+| `scripts/lint-typecheck-hook.sh` | Claude Code PostToolUse hook with circuit breaker | Step 9 (Claude Code only) |
+| `scripts/validate-setup.sh` | Runs 19 checks to verify the entire setup works | Step 9 (after hook setup) |
 | `references/eslint-config-reference.mjs` | Full ESLint config template with all sections | Step 2 (config generation) |
-| `references/claude-code-settings.json` | Template `.claude/settings.json` with hook config | Step 8 (Claude Code only) |
-| `references/claude-code-integration.md` | Full Claude Code setup guide (LSP, hooks, self-test) | Step 8 (Claude Code only) |
+| `references/claude-code-settings.json` | Template `.claude/settings.json` with hook config | Step 9 (Claude Code only) |
+| `references/claude-code-integration.md` | Full Claude Code setup guide (LSP, hooks, self-test) | Step 9 (Claude Code only) |

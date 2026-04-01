@@ -141,6 +141,86 @@ assert_eq "monorepo=true"    "$(get_json "$OUT_C" modules.monorepo)"   "true"
 assert_eq "buildTool=none"   "$(get_json "$OUT_C" buildTool)"          "none"
 assert_eq "nestjs=false"     "$(get_json "$OUT_C" modules.nestjs)"     "false"
 
+# ─── Fixture D: No package.json (should exit 1) ───
+
+echo ""
+echo "=== Fixture D: No package.json ==="
+
+DIR_D="$TMPDIR_BASE/fixture-d"
+mkdir -p "$DIR_D"
+
+if bash "$DETECT" "$DIR_D" > /dev/null 2>&1; then
+  echo "  ✗ Expected exit 1 for missing package.json"
+  FAIL=$((FAIL + 1))
+else
+  echo "  ✓ Correctly exits 1 for missing package.json"
+  PASS=$((PASS + 1))
+fi
+
+# ─── Fixture E: Bun project with bun.lock (text-based lockfile) ───
+
+echo ""
+echo "=== Fixture E: Bun project with bun.lock ==="
+
+DIR_E="$TMPDIR_BASE/fixture-e"
+mkdir -p "$DIR_E"
+
+cat > "$DIR_E/package.json" <<'EPKG'
+{
+  "name": "bun-app",
+  "dependencies": { "hono": "4.0.0" },
+  "devDependencies": { "typescript": "5.0.0" }
+}
+EPKG
+
+touch "$DIR_E/bun.lock"
+
+OUT_E=$(run_detect "$DIR_E")
+assert_eq "pkgManager=bun"  "$(get_json "$OUT_E" packageManager)"     "bun"
+
+# ─── Fixture F: Existing eslint flat config ───
+
+echo ""
+echo "=== Fixture F: Existing eslint.config.mjs ==="
+
+DIR_F="$TMPDIR_BASE/fixture-f"
+mkdir -p "$DIR_F"
+
+cat > "$DIR_F/package.json" <<'FPKG'
+{
+  "name": "flat-config-app",
+  "dependencies": {},
+  "devDependencies": { "eslint": "9.0.0", "typescript": "5.0.0" }
+}
+FPKG
+
+touch "$DIR_F/eslint.config.mjs"
+
+OUT_F=$(run_detect "$DIR_F")
+assert_eq "existingConfig=flat-mjs" "$(get_json "$OUT_F" existingConfig)" "flat-mjs"
+
+# ─── Fixture G: Project with "check" script (command detection) ───
+
+echo ""
+echo "=== Fixture G: 'check' script detection ==="
+
+DIR_G="$TMPDIR_BASE/fixture-g"
+mkdir -p "$DIR_G"
+
+cat > "$DIR_G/package.json" <<'GPKG'
+{
+  "name": "check-app",
+  "dependencies": {},
+  "devDependencies": { "typescript": "5.0.0" },
+  "scripts": {
+    "check": "tsc --noEmit"
+  }
+}
+GPKG
+
+OUT_G=$(run_detect "$DIR_G")
+assert_eq "typecheck=npm run check" "$(get_json "$OUT_G" detectedCommands.typecheck)" "npm run check"
+
 # ─── Summary ───
 
 echo ""

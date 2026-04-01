@@ -82,7 +82,7 @@ fi
 
 # Find a real .ts or .tsx file to test against
 test_file=""
-for candidate in $(find src apps packages lib -name '*.ts' -o -name '*.tsx' 2>/dev/null | head -5); do
+for candidate in $(find src apps packages lib -maxdepth 4 \( -name '*.ts' -o -name '*.tsx' \) 2>/dev/null | grep -v node_modules | head -5); do
   if [[ -f "$candidate" ]] && [[ ! "$candidate" =~ node_modules ]]; then
     test_file="$candidate"
     break
@@ -168,6 +168,18 @@ if [[ -f ".claude/hooks/lint-typecheck.sh" ]]; then
     warn "Skipping hook dry-run (no test file available)"
   fi
 
+  # Test with a synthetic known-bad TS file to prove blocking works
+  bad_file=".claude-validate-bad-$$.ts"
+  echo 'const x: any = 1; const y: any = 2;' > "$bad_file"
+  bad_payload="{\"hook_event_name\":\"PostToolUse\",\"tool_name\":\"Edit\",\"tool_input\":{\"file_path\":\"$bad_file\"},\"tool_response\":{},\"session_id\":\"test\",\"cwd\":\"$PWD\"}"
+  bad_out=$(echo "$bad_payload" | timeout 15 .claude/hooks/lint-typecheck.sh 2>&1)
+  rm -f "$bad_file"
+  if [[ -n "$bad_out" ]] && echo "$bad_out" | grep -q '"decision"'; then
+    pass "Hook correctly blocks on known-bad TS file"
+  else
+    warn "Hook did not block on synthetic bad file (ESLint may not flag 'any' without type-aware rules)"
+  fi
+
   # Test with a non-TS file to verify it skips gracefully
   skip_payload='{"hook_event_name":"PostToolUse","tool_name":"Edit","tool_input":{"file_path":"README.md"},"tool_response":{},"session_id":"test","cwd":"."}'
   skip_out=$(echo "$skip_payload" | timeout 5 .claude/hooks/lint-typecheck.sh 2>&1)
@@ -222,7 +234,7 @@ echo ""
 # -----------------------------------------------------------
 echo "🔌 Circuit breaker"
 
-breaker_dir="/tmp/claude-lint-breaker"
+breaker_dir="${TMPDIR:-/tmp}/claude-lint-breaker"
 if [[ -d "$breaker_dir" ]]; then
   stale_count=$(find "$breaker_dir" -type f 2>/dev/null | wc -l | tr -d ' ')
   if [[ "$stale_count" -gt 0 ]]; then

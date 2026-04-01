@@ -76,18 +76,32 @@ if [[ "$fail_count" -ge 5 ]]; then
   exit 0
 fi
 
-# --- Verify ESLint is available ---
-if ! command -v npx &>/dev/null; then
-  exit 0
+# --- Detect package runner ---
+# Supports npx, bunx, and yarn (PnP). Falls back gracefully.
+RUNNER=""
+if [[ -f "bun.lockb" ]] || [[ -f "bun.lock" ]]; then
+  command -v bunx &>/dev/null && RUNNER="bunx"
+elif [[ -f ".pnp.cjs" ]] || [[ -f ".pnp.js" ]]; then
+  command -v yarn &>/dev/null && RUNNER="yarn exec"
+fi
+if [[ -z "$RUNNER" ]]; then
+  command -v npx &>/dev/null && RUNNER="npx" || exit 0
 fi
 
 # Quick check that eslint is actually installed in the project
-if [[ ! -d "node_modules/.bin" ]] || ! npx eslint --version &>/dev/null; then
-  exit 0
+# Skip node_modules check for Yarn PnP and Bun
+if [[ "$RUNNER" == "npx" ]]; then
+  if [[ ! -d "node_modules/.bin" ]] || ! npx eslint --version &>/dev/null; then
+    exit 0
+  fi
+else
+  if ! $RUNNER eslint --version &>/dev/null; then
+    exit 0
+  fi
 fi
 
 # --- Run ESLint on the single file ---
-lint_out=$(npx eslint "$file_path" 2>&1)
+lint_out=$($RUNNER eslint "$file_path" 2>&1)
 lint_exit=$?
 
 if [[ $lint_exit -eq 0 ]]; then

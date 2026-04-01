@@ -6,7 +6,7 @@
 # instead of grep-based substring matching.
 # Outputs a JSON object with boolean flags for each module.
 
-set -uo pipefail
+set -euo pipefail
 
 ROOT="${1:-.}"
 PKG="$ROOT/package.json"
@@ -30,8 +30,8 @@ has_dir() {
 # --- Parse package.json with Node for accurate dependency detection ---
 # This avoids grep substring false positives (e.g., "react" matching "react-native").
 
-DEP_FLAGS=$(node -e "
-const pkg = JSON.parse(require('fs').readFileSync('$PKG', 'utf8'));
+DEP_FLAGS=$(PKG_PATH="$PKG" node -e "
+const pkg = JSON.parse(require('fs').readFileSync(process.env.PKG_PATH, 'utf8'));
 const all = { ...pkg.dependencies, ...pkg.devDependencies, ...pkg.peerDependencies };
 const has = (name) => name in all;
 
@@ -63,7 +63,7 @@ const scriptInfo = {
 
 for (const [key, val] of Object.entries(scripts)) {
   if (/^lint(:|$)/.test(key) && !scriptInfo.lintCmd) scriptInfo.lintCmd = 'npm run ' + key;
-  if (/^(typecheck|type-check|tsc)$/.test(key) && !scriptInfo.typecheckCmd) scriptInfo.typecheckCmd = 'npm run ' + key;
+  if (/^(typecheck|type-check|tsc|check)$/.test(key) && !scriptInfo.typecheckCmd) scriptInfo.typecheckCmd = 'npm run ' + key;
   if (/^test(:|$)/.test(key) && !key.includes('e2e') && !scriptInfo.testCmd) scriptInfo.testCmd = 'npm run ' + key;
 }
 
@@ -129,10 +129,10 @@ fi
 # --- Scan workspace package.json files for dependencies ---
 
 if [[ "$HAS_MONOREPO" == "true" ]]; then
-  WORKSPACE_FLAGS=$(node -e "
+  WORKSPACE_FLAGS=$(PROJECT_ROOT="$ROOT" node -e "
     const fs = require('fs');
     const path = require('path');
-    const root = '$ROOT';
+    const root = process.env.PROJECT_ROOT;
 
     // Resolve workspace glob patterns to actual directories
     let patterns = [];
@@ -249,7 +249,7 @@ if [[ -f "$ROOT/pnpm-lock.yaml" ]]; then
   PKG_MANAGER="pnpm"
 elif [[ -f "$ROOT/yarn.lock" ]]; then
   PKG_MANAGER="yarn"
-elif [[ -f "$ROOT/bun.lockb" ]]; then
+elif [[ -f "$ROOT/bun.lockb" ]] || [[ -f "$ROOT/bun.lock" ]]; then
   PKG_MANAGER="bun"
 fi
 
@@ -286,7 +286,7 @@ build_glob_array() {
   for dir in "${dirs[@]}"; do
     if has_dir "$dir"; then
       $first || result+=","
-      result+="\"**/${dir}/**/*.ts\",\"**/${dir}/**/*.tsx\""
+      result+="\"**/${dir}/**/*.ts\",\"**/${dir}/**/*.tsx\",\"**/${dir}/**/*.js\",\"**/${dir}/**/*.jsx\",\"**/${dir}/**/*.mjs\""
       first=false
     fi
   done

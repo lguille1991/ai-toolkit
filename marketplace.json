@@ -546,7 +546,7 @@
       "extends": "core-coding-standards",
       "status": "ready",
       "rules": 0,
-      "version": 3
+      "version": 4
     }
   ],
   "drafts": [

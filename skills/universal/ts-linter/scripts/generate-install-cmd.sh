@@ -28,8 +28,10 @@ PRETTIER=$(get_field "prettier")
 CORE_PKGS=(
   "eslint"
   "@eslint/js"
+  "typescript"
   "typescript-eslint"
   "@eslint-community/eslint-plugin-eslint-comments"
+  "eslint-config-prettier"
   "eslint-plugin-de-morgan"
   "eslint-plugin-promise"
   "eslint-plugin-regexp"
@@ -45,8 +47,6 @@ QUERY_PKGS=()
 DRIZZLE_PKGS=()
 TEST_PKGS=()
 NODE_PKGS=()
-PRETTIER_PKGS=()
-
 # --- Conditional packages ---
 
 if [[ "$REACT" == "true" ]]; then
@@ -85,13 +85,9 @@ if [[ "$NODE_BACKEND" == "true" ]]; then
   NODE_PKGS=("eslint-plugin-n")
 fi
 
-if [[ "$PRETTIER" == "true" ]]; then
-  PRETTIER_PKGS=("eslint-config-prettier")
-fi
-
 # --- Build install command ---
 
-ALL_PKGS=("${CORE_PKGS[@]}" "${REACT_PKGS[@]}" "${NATIVE_PKGS[@]}" "${QUERY_PKGS[@]}" "${DRIZZLE_PKGS[@]}" "${TEST_PKGS[@]}" "${NODE_PKGS[@]}" "${PRETTIER_PKGS[@]}")
+ALL_PKGS=("${CORE_PKGS[@]}" "${REACT_PKGS[@]}" "${NATIVE_PKGS[@]}" "${QUERY_PKGS[@]}" "${DRIZZLE_PKGS[@]}" "${TEST_PKGS[@]}" "${NODE_PKGS[@]}")
 
 case "$PKG_MANAGER" in
   pnpm)  CMD="pnpm add -D" ;;
@@ -105,63 +101,35 @@ echo "# ESLint Dependencies Install Command"
 echo "# Package manager: $PKG_MANAGER"
 echo "# ================================================"
 echo ""
-echo "$CMD \\"
-
-# Print with categories
-echo "  # Core"
-for pkg in "${CORE_PKGS[@]}"; do
-  echo "  $pkg \\"
-done
-
-if [[ ${#REACT_PKGS[@]} -gt 0 ]]; then
-  echo "  # React"
-  for pkg in "${REACT_PKGS[@]}"; do
-    echo "  $pkg \\"
+# Print as a single executable command (no inline comments that break continuations)
+# Collect all packages into a flat list, then print with continuations except the last
+{
+  for pkg in "${ALL_PKGS[@]}"; do
+    echo "$pkg"
   done
-fi
-
-if [[ ${#NATIVE_PKGS[@]} -gt 0 ]]; then
-  echo "  # React Native"
-  for pkg in "${NATIVE_PKGS[@]}"; do
-    echo "  $pkg \\"
+} | {
+  total=${#ALL_PKGS[@]}
+  i=0
+  echo "$CMD \\"
+  while IFS= read -r pkg; do
+    i=$((i + 1))
+    if [[ $i -lt $total ]]; then
+      echo "  $pkg \\"
+    else
+      echo "  $pkg"
+    fi
   done
-fi
+}
 
-if [[ ${#QUERY_PKGS[@]} -gt 0 ]]; then
-  echo "  # TanStack Query"
-  for pkg in "${QUERY_PKGS[@]}"; do
-    echo "  $pkg \\"
-  done
-fi
-
-if [[ ${#DRIZZLE_PKGS[@]} -gt 0 ]]; then
-  echo "  # Drizzle ORM"
-  for pkg in "${DRIZZLE_PKGS[@]}"; do
-    echo "  $pkg \\"
-  done
-fi
-
-if [[ ${#TEST_PKGS[@]} -gt 0 ]]; then
-  echo "  # Testing"
-  for pkg in "${TEST_PKGS[@]}"; do
-    echo "  $pkg \\"
-  done
-fi
-
-if [[ ${#NODE_PKGS[@]} -gt 0 ]]; then
-  echo "  # Node.js"
-  for pkg in "${NODE_PKGS[@]}"; do
-    echo "  $pkg \\"
-  done
-fi
-
-if [[ ${#PRETTIER_PKGS[@]} -gt 0 ]]; then
-  echo "  # Prettier"
-  for pkg in "${PRETTIER_PKGS[@]}"; do
-    echo "  $pkg \\"
-  done
-fi
-
-# Remove trailing backslash from last line (cosmetic)
+# Print summary as comments after the command
 echo ""
 echo "# Total packages: ${#ALL_PKGS[@]}"
+echo "#"
+echo "# Categories included:"
+echo "#   Core: ${#CORE_PKGS[@]} packages"
+[[ ${#REACT_PKGS[@]} -gt 0 ]] && echo "#   React: ${#REACT_PKGS[@]} packages" || true
+[[ ${#NATIVE_PKGS[@]} -gt 0 ]] && echo "#   React Native: ${#NATIVE_PKGS[@]} packages" || true
+[[ ${#QUERY_PKGS[@]} -gt 0 ]] && echo "#   TanStack Query: ${#QUERY_PKGS[@]} packages" || true
+[[ ${#DRIZZLE_PKGS[@]} -gt 0 ]] && echo "#   Drizzle ORM: ${#DRIZZLE_PKGS[@]} packages" || true
+[[ ${#TEST_PKGS[@]} -gt 0 ]] && echo "#   Testing: ${#TEST_PKGS[@]} packages" || true
+[[ ${#NODE_PKGS[@]} -gt 0 ]] && echo "#   Node.js: ${#NODE_PKGS[@]} packages" || true
