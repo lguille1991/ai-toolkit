@@ -32,6 +32,12 @@ This skill introduces a strict, comprehensive ESLint configuration into a TypeSc
 and then systematically resolves every linting issue — auto-fixing what it can and manually
 rewriting what it can't. The goal is zero lint errors with zero broken functionality.
 
+## Core Principle
+
+**Rules are immutable.** Once the ESLint configuration is generated, treat it as frozen. The
+only lever is changing application code. Never suppress, disable, downgrade, or override a
+rule — refactor the code to comply.
+
 ## Before Starting
 
 Recommend the user commits their current state before any changes:
@@ -48,9 +54,9 @@ undo — proceed carefully, fix in small batches.
 3. **Validate** the config actually loads before proceeding
 4. **Install** all required dependencies using `scripts/generate-install-cmd.sh`
 5. **Auto-fix** using `eslint --fix` in batches
-6. **Categorize** remaining errors using `scripts/categorize-errors.js`
+6. **Baseline** — capture error counts before manual fixes begin
 7. **Manually fix** every remaining issue, verifying after each batch
-8. **Verify** the project compiles and tests pass
+8. **Verify** and produce a before/after summary comparing against baseline
 9. *(Optional, Claude Code only)* Set up hooks — see `references/claude-code-integration.md`
 
 Steps 1-8 are platform-agnostic and work identically on Claude.ai, Claude Code, and the API.
@@ -193,7 +199,31 @@ and group errors manually by rule name.
 
 ---
 
-## Step 6: Manual Fix — Systematic Remediation
+## Step 6: Baseline
+
+Before starting manual fixes, capture the starting state. This is your reference point for
+the before/after summary at the end.
+
+```bash
+npx eslint . --format json 2>/dev/null | node <skill-path>/scripts/categorize-errors.js
+npx tsc --noEmit 2>&1 | tail -1
+# Run tests and capture count
+```
+
+Record:
+
+```
+📋 Baseline (post auto-fix):
+   Lint errors: <total> across <n> files (<top-3-rules-with-counts>)
+   TypeScript: clean / <n> errors
+   Tests: <passed>/<total>
+```
+
+Keep these numbers — you will compare against them in Step 8.
+
+---
+
+## Step 7: Manual Fix — Systematic Remediation
 
 Work through remaining errors by category, not by file. Fix order (highest-impact,
 lowest-risk first):
@@ -211,12 +241,16 @@ lowest-risk first):
 
 ### Fix Principles
 
-- Never use `eslint-disable` unless genuinely a false positive. Always include a comment.
+- **Rules are immutable.** Do not add `eslint-disable`, `eslint-disable-next-line`, `@ts-ignore`, `@ts-expect-error`, or modify `eslint.config.mjs` to weaken a rule.
+- **Fix the code, not the rule.** If a rule flags `any`, replace with a proper type — do not cast through `unknown` as a shortcut. If a rule flags cognitive complexity, extract named helpers.
+- **Behavior must be preserved.** Every refactor must produce identical runtime behavior. Flag public API signature changes to the user before applying.
+- **Read the rule docs.** Before fixing a violation, understand what the rule enforces and why. Propose the minimal refactor that satisfies it.
 - Check `tsc --noEmit` and tests after every batch of fixes.
 - Fix in batches of 5 files max, then verify. If tests break, revert and redo one at a time.
 - Never rename files and fix lint in the same batch — renames touch every import site.
-- If the same error comes back 3 times, add `eslint-disable` with a TODO and move on.
-- If two consecutive batches don't reduce the error count, stop and report to the user.
+- No drive-by changes — only touch code flagged by a violation.
+- If a violation appears genuinely unfixable without suppression (e.g., a third-party type definition forces `any`), report it as a **blocked item** with rule name, file, line, and reason. Wait for the user to decide — do not suppress silently.
+- If two consecutive batches don't reduce the error count, report blocked items to the user with specific refactor options for each, then wait for direction.
 
 ### Progress Reporting
 
@@ -226,17 +260,18 @@ the user can track status and decide whether to continue:
 ```
 📊 Progress: 47 errors remaining (down from 83)
    Fixed this batch: 12 errors across 5 files (unused imports)
+   Blocked: 2 (third-party type forces `any` — see blocked items below)
    Next: 18 type safety errors (@typescript-eslint/no-explicit-any)
    ✅ tsc --noEmit: clean | ✅ Tests: 42 passed
 ```
 
 If the remaining errors are all in one category that requires significant refactoring,
-ask the user whether to proceed or stop and accept the current state with eslint-disable
-comments on the remaining violations.
+ask the user whether to proceed with deeper refactoring or defer those violations to a
+follow-up task. Do not offer eslint-disable as an option.
 
 ---
 
-## Step 7: Verification
+## Step 8: Verification and Before/After Summary
 
 ```bash
 npx eslint .
@@ -244,9 +279,29 @@ npx tsc --noEmit
 # Run tests (vitest run, jest, etc.)
 ```
 
-Report: `✅ Linting: 0 errors | ✅ TypeScript: clean | ✅ Tests: X passed, 0 failed`
-
 If anything fails, diagnose and fix before declaring done.
+
+Once verification passes, produce a before/after summary comparing against the Step 6 baseline:
+
+```
+## Before/After Summary
+
+| Metric           | Before (baseline) | After        | Delta   |
+|------------------|--------------------|--------------|---------|
+| Lint errors      | <n>                | <n>          | -<n>    |
+| Files with errors| <n>                | <n>          | -<n>    |
+| TypeScript       | clean / <n> errors | clean        |         |
+| Tests            | <passed>/<total>   | <passed>/<total> |     |
+
+### Refactors applied
+- <rule-name>: <1-line description of refactor> (x<count>)
+- ...
+
+### Blocked items (if any)
+- <rule-name> in <file>:<line> — <reason code-only fix is not possible>
+```
+
+This summary is mandatory — do not declare done without it.
 
 ### Monorepos
 
@@ -255,7 +310,7 @@ Install dependencies at root. Adapt per-app overrides to actual app names.
 
 ---
 
-## Step 8: Claude Code Integration (Optional, Claude Code Only)
+## Step 9: Claude Code Integration (Optional, Claude Code Only)
 
 If the user wants Claude Code hooks to auto-lint after every edit, read
 `references/claude-code-integration.md` for the full setup including:
