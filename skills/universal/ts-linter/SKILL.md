@@ -1,27 +1,29 @@
 ---
 name: ts-linter
-description: >
-  Set up and enforce a strict, production-grade ESLint configuration for TypeScript projects,
-  then systematically fix all linting issues. Use this skill whenever the user asks to add a
-  linter or ESLint, enforce code quality rules, fix linting errors, clean up code style, or
-  add type-aware linting. Trigger on: "lint", "eslint", "code quality", "static analysis",
-  "strict linting", "make it stricter", "make the code stricter", "add better rules", "clean
-  up the codebase", "enforce standards", or "fix all the warnings". Handles detection, config
-  generation, dependency installation, auto-fix, and manual remediation. Do NOT use for Biome
-  or Rome projects, Prettier-only formatting, non-TypeScript/JavaScript projects, writing
-  custom ESLint rules or plugins, husky/lint-staged/pre-commit hook setup, or when the user
-  just wants to run an existing linter without changing its configuration.
+description: 'Set up and enforce a strict, production-grade ESLint configuration for
+  TypeScript projects, then systematically fix all linting issues. Use this skill
+  whenever the user asks to add a linter or ESLint, enforce code quality rules, fix
+  linting errors, clean up code style, or add type-aware linting. Trigger on: "lint",
+  "eslint", "code quality", "static analysis", "strict linting", "make it stricter",
+  "make the code stricter", "add better rules", "clean up the codebase", "enforce
+  standards", or "fix all the warnings". Handles detection, config generation, dependency
+  installation, auto-fix, and manual remediation. Do NOT use for Biome or Rome projects,
+  Prettier-only formatting, non-TypeScript/JavaScript projects, writing custom ESLint
+  rules or plugins, husky/lint-staged/pre-commit hook setup, or when the user just
+  wants to run an existing linter without changing its configuration.
+
+  '
 metadata:
   category: universal
   extends: core-coding-standards
   tags:
-    - eslint
-    - typescript
-    - linting
-    - code-quality
-    - static-analysis
+  - eslint
+  - typescript
+  - linting
+  - code-quality
+  - static-analysis
   status: ready
-  version: 1
+  version: 2
 ---
 
 # TypeScript Linter Skill

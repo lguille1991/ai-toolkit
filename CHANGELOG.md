@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-04-01
+
+- Added ESLint skill for TypeScript projects.
 ## 2026-03-27
 
 - Added grill-me skill. (#17)
