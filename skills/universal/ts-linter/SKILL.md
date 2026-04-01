@@ -23,7 +23,7 @@ metadata:
   - code-quality
   - static-analysis
   status: ready
-  version: 2
+  version: 3
 ---
 
 # TypeScript Linter Skill
