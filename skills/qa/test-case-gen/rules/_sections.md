@@ -41,6 +41,11 @@ Reference lookup tables and technical definitions loaded during skill execution.
 - `std-explicit-preconditions.md`
 - `std-active-voice-steps.md`
 - `std-platform-terminology.md`
+- `gen-coverage-strategy.md`
+- `eval-rubric.md`
+- `audit-suite-health.md`
+- `norm-conversion-rules.md`
+- `ref-field-definitions.md`
 - `ref-input-sources.md`
 - `ref-output-format.md`
 - `ref-schema-generate.md`

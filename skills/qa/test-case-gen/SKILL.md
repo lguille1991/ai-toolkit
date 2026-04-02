@@ -31,49 +31,25 @@ Every test case must comply with rules in the `rules/` directory. See `rules/_se
 | Explicit preconditions | `rules/std-explicit-preconditions.md` | HIGH |
 | Active voice steps | `rules/std-active-voice-steps.md` | MEDIUM |
 | Platform terminology | `rules/std-platform-terminology.md` | HIGH |
+| Field definitions | `rules/ref-field-definitions.md` | HIGH |
 | Input source detection | `rules/ref-input-sources.md` | HIGH |
 | Output format and file output | `rules/ref-output-format.md` | HIGH |
 
-**Output format and file output** — Modes A and D default to CSV; Modes B and C deliver inline JSON. See `rules/ref-output-format.md`.
-
-## Field Reference
-
-**Risk Level** — `High`: blocks core flow, data loss, or payment/auth (any test touching payments, authentication, or authorization MUST be `High`) · `Medium`: degrades UX, workaround exists · `Low`: minor cosmetic or edge case
-**Priority** — `P1`: smoke suite, run before any release · `P2`: regression suite, before sprint sign-off · `P3`: full regression cycles · `P4`: run when time permits
-**Type** — ONLY these values are valid: `Smoke` · `Functional` · `Regression` · `Integration` · `E2E` · `API` · `UI` · `Security` · `Performance` · `Exploratory`. Never use unlisted values like "Edge Case", "Negative", or "Boundary".
-**Automation Candidate** — `true` if stable, deterministic, and valuable to automate; `false` for exploratory or context-dependent tests
-
-**Platform** — controls vocabulary and element naming; see `rules/std-platform-terminology.md`.
-
 ## Mode A — Generate
 
-Produce a coverage-complete set of test cases. Number them sequentially and group them in this strict order — no exceptions: (1) all happy-path cases first, (2) all negative-path cases second, (3) all edge cases last. Never interleave groups — every negative case must appear before the first edge case. Apply Equivalence Partitioning, Boundary Value Analysis, and State Transition Testing. Assign riskiest behaviors High risk / P1–P2 priority. No duplicates. Scale: Hotfix 3–8 tests · Sprint 8–15 · Major 15–30.
-
-**Input source context** — If step 2 provided a DOM snapshot (URL) or parsed markup (HTML/XML), use that structure to:
-- Identify real form fields, interactive elements, and navigation flows instead of inferring them from a text description.
-- Derive preconditions from authentication gates, required fields, and visible state (e.g., `aria-disabled="true"` implies a precondition to enable).
-- Detect testable flows: form submissions, dialogs, pagination, dynamic state changes.
-- Note in `coverage_summary.input_source` which source was used (`"url"`, `"html"`, or `"text"`).
-
-Output: JSON/XML/CSV — see `rules/ref-schema-generate.md` for required fields. The output file contains test cases only; the coverage summary is delivered inline (see Workflow steps 6–8).
+Produce a coverage-complete set of test cases. See `rules/gen-coverage-strategy.md` for grouping, scaling, test design techniques, and input-source context. See `rules/ref-schema-generate.md` for required output fields.
 
 ## Mode B — Evaluate
 
-Score a test case using this rubric: Risk Coverage 20 · Clarity 15 · Maintainability 15 · Expected Results 15 · Non-Redundancy 10 · Test Design Technique 10 · Business Alignment 10 · Tagging Compliance 5. Grades: A ≥ 90 · B ≥ 80 · C ≥ 70 · D ≥ 60 · F < 60. Every deduction in `rubric_breakdown` MUST include a `rules_violated` field citing the specific standard (e.g., `"std-behavior-over-ui"`, `"std-measurable-expected-results"`) — generic descriptions without rule citations are not acceptable. Include `improved_version` when score < 80, `null` when ≥ 80.
-
-Output: JSON with `overall_score`, `grade`, `rubric_breakdown`, `top_issues`, `improved_version`.
+Score a test case 0–100 using a weighted rubric. See `rules/eval-rubric.md` for dimensions, grades, rule citation requirements, and output schema.
 
 ## Mode C — Audit
 
-Analyze a complete test suite: map tests to flows/features and find uncovered areas; identify duplicate clusters for merging; verify risk/priority distribution (80% P3/P4 = red flag); check automation candidates; produce a `recommended_suite` with specific add/remove/modify actions.
-
-Output: JSON with `suite_health` (total_test_cases, coverage_score, health_grade, automation_coverage_pct, type/priority/risk distributions, issues_summary), `coverage_gap_analysis` (uncovered_areas, over_tested_areas, risk_exposure), `redundancy_analysis` (duplicate_groups), and `recommended_suite` (add, remove, modify arrays).
+Analyze a complete test suite for coverage, redundancy, and health. See `rules/audit-suite-health.md` for analysis criteria and output schema.
 
 ## Mode D — Normalize
 
-Convert test cases from any format to the RAVN standard schema. Preserve all original test steps — every step in the source must appear as a step in the output (do not collapse steps into preconditions). Fix behavior-over-UI violations and record each fix in `normalization_summary.issues_fixed` (integer count). Split compound tests (multiple objectives) into separate test cases using `-A`/`-B` suffixes on the original ID (e.g., `OLD-042-A`, `OLD-042-B`) and record the count in `normalization_summary.splits_performed`. Detect platform from source content (device names, gesture vocabulary, UI element names). Defaults when uninferable (apply these exactly — do not override): `risk_level=Medium` · `priority=P3` · `type=Functional` · `automation_candidate=false` · `platform=cross-platform`. In particular, `automation_candidate` MUST default to `false` unless the source explicitly marks it otherwise.
-
-Output: JSON/XML/CSV with `normalized_test_cases` (array) and `normalization_summary` (original_count, normalized_count, splits_performed, fields_inferred, issues_fixed, data_loss_warnings). The `normalization_summary` is always delivered inline — never in the output file. After normalization, the user previews and selects which test cases to include (see Workflow step 6).
+Convert test cases from any format to the RAVN standard schema. See `rules/norm-conversion-rules.md` for step preservation, splitting, defaults, and output schema.
 
 ## Workflow
 
@@ -82,7 +58,7 @@ Output: JSON/XML/CSV with `normalized_test_cases` (array) and `normalization_sum
    Follow the processing path and MCP fallback defined in `rules/ref-input-sources.md`.
 3. **Detect or confirm platform** — Use explicit platform from user input; if not inferable, ask once: "Which platform — `web`, `ios`, `android`, or `cross-platform`?" URL or HTML input implies `web` unless stated otherwise.
 4. **Confirm output format** — For A and D, default to CSV unless specified.
-5. **Execute mode** — Apply Shared Standards. For Mode A, incorporate input-source context per Mode A instructions.
+5. **Execute mode** — Apply Shared Standards. For Mode A, incorporate input-source context per `rules/gen-coverage-strategy.md`.
 6. **Preview & select** *(Modes A and D only)* — Present the generated test cases as a checklist table. Each row is a checkbox line the user can toggle:
 
    ```
