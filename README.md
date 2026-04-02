@@ -2,7 +2,7 @@
 
 [![Skills Quality](https://github.com/ravnhq/ai-toolkit/actions/workflows/skills-quality.yml/badge.svg)](https://github.com/ravnhq/ai-toolkit/actions/workflows/skills-quality.yml)
 
-Modular "skills" — portable rule packs that teach AI coding agents (Claude Code, Cursor, etc.) best practices for specific technologies — so every project gets consistent, expert-level guidance without copy-pasting prompts. **28 ready skills** organized by role.
+Modular "skills" — portable rule packs that teach AI coding agents (Claude Code, Cursor, etc.) best practices for specific technologies — so every project gets consistent, expert-level guidance without copy-pasting prompts. **30 ready skills** organized by role.
 
 ## Quick Start
 
@@ -69,6 +69,7 @@ npx skills add ravnhq/ai-toolkit -s platform-testing
 |-------|-------------|
 | `core-coding-standards` | Universal code quality rules — KISS, DRY, clean code, code review. Base skill every project should include. |
 | `lang-typescript` | TypeScript language patterns and type safety rules — strict mode, no any, discriminated unions. |
+| `ts-linter` | Set up and enforce a strict, production-grade ESLint configuration for TypeScript projects. |
 
 ### Frontend
 
@@ -127,6 +128,10 @@ npx skills add ravnhq/ai-toolkit -s platform-testing
 | `agent-pr-creator` | Analyzes git diffs and commit history to create pull requests via gh CLI. |
 | `rewrite-commit-history` | Rewrite a feature branch's commit history into clean conventional commits. |
 | `eval-agent-md` | Behavioral compliance testing for CLAUDE.md or agent definition files. |
+| `grill-me` | Interview the user relentlessly about a plan or design until reaching shared understanding. |
+| `pr-comments-address` | Reads open review comments from a GitHub PR, triages them, applies code fixes. |
+| `transcript-notes` | Process meeting transcripts into structured notes with metadata, TL;DR, and action items. |
+| `type-system-audit` | Audit type-system weaknesses using bug-fix commits as evidence. |
 
 ## Versioning
 
