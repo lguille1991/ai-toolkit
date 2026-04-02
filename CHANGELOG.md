@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-04-02
+
+- Improved Turborepo support — pnpm -w flag, turbo typecheck, tsconfig guidance.
+## 2026-04-01
+
+- Fixed address 18 review findings from dual-reviewer audit.
+- Enforced immutable rules, add baseline and before/after summary.
+- Added ESLint skill for TypeScript projects.
 ## 2026-03-27
 
 - Added grill-me skill. (#17)

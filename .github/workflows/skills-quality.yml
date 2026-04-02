@@ -42,3 +42,40 @@ jobs:
 
       - name: Run trigger/functional/performance harness
         run: ruby scripts/skills_harness.rb
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: |
+          if ! command -v shellcheck &> /dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y shellcheck
+          fi
+          shellcheck --version
+
+      - name: Run shellcheck
+        run: |
+          # Find all shell scripts and check them
+          SCRIPTS=$(find . -name "*.sh" -type f | grep -v ".git")
+          if [ -z "$SCRIPTS" ]; then
+            echo "No shell scripts found."
+            exit 0
+          fi
+          
+          echo "Found shell scripts:"
+          echo "$SCRIPTS"
+          echo ""
+          
+          # Run shellcheck on all scripts
+          echo "$SCRIPTS" | while read -r script; do
+            echo "Checking: $script"
+          done
+          
+          # Use process substitution to properly capture exit code
+          shellcheck $SCRIPTS
