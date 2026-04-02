@@ -42,3 +42,18 @@ jobs:
 
       - name: Run trigger/functional/performance harness
         run: ruby scripts/skills_harness.rb
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run shellcheck
+        run: |
+          find skills/universal/ts-linter/scripts -name "*.sh" -type f | while read -r script; do
+            echo "Checking: $script"
+            rtk shellcheck "$script"
+          done

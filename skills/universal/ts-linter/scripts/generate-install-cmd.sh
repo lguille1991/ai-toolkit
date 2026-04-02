@@ -22,7 +22,6 @@ VITEST=$(get_field "vitest")
 PLAYWRIGHT=$(get_field "playwright")
 TESTING_LIB=$(get_field "testingLibrary")
 NODE_BACKEND=$(get_field "nodeBackend")
-PRETTIER=$(get_field "prettier")
 
 # --- Core packages (always installed) ---
 CORE_PKGS=(

@@ -83,8 +83,7 @@ echo ""
 echo "🔧 ESLint smoke test"
 
 if [[ -n "$RUNNER" ]]; then
-  eslint_version=$($RUNNER eslint --version 2>&1)
-  if [[ $? -eq 0 ]]; then
+  if eslint_version=$($RUNNER eslint --version 2>&1); then
     pass "ESLint runs (${eslint_version})"
   else
     fail "ESLint crashes on --version: $eslint_version"
@@ -129,8 +128,7 @@ echo ""
 echo "🔍 TypeScript"
 
 if [[ -n "$RUNNER" ]]; then
-  tsc_version=$($RUNNER tsc --version 2>&1)
-  if [[ $? -eq 0 ]]; then
+  if tsc_version=$($RUNNER tsc --version 2>&1); then
     pass "TypeScript compiler available ($tsc_version)"
   else
     fail "TypeScript compiler not found"
@@ -204,16 +202,14 @@ if [[ -f ".claude/hooks/lint-typecheck.sh" ]]; then
 
   # Test with a non-TS file to verify it skips gracefully
   skip_payload='{"hook_event_name":"PostToolUse","tool_name":"Edit","tool_input":{"file_path":"README.md"},"tool_response":{},"session_id":"test","cwd":"."}'
-  skip_out=$(echo "$skip_payload" | timeout 5 .claude/hooks/lint-typecheck.sh 2>&1)
-  if [[ $? -eq 0 ]] && [[ -z "$skip_out" ]]; then
+  if skip_out=$(echo "$skip_payload" | timeout 5 .claude/hooks/lint-typecheck.sh 2>&1) && [[ -z "$skip_out" ]]; then
     pass "Hook correctly skips non-TS files"
   else
     warn "Hook produced unexpected output for non-TS file"
   fi
 
   # Test with empty stdin
-  empty_out=$(echo "" | timeout 5 .claude/hooks/lint-typecheck.sh 2>&1)
-  if [[ $? -eq 0 ]] && [[ -z "$empty_out" ]]; then
+  if empty_out=$(echo "" | timeout 5 .claude/hooks/lint-typecheck.sh 2>&1) && [[ -z "$empty_out" ]]; then
     pass "Hook handles empty stdin gracefully"
   else
     fail "Hook crashes on empty stdin"

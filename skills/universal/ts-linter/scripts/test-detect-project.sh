@@ -26,7 +26,8 @@ get_json() {
 # Helper: run detect and save output to a temp file, return the path
 run_detect() {
   local dir="$1"
-  local out_file="$TMPDIR_BASE/output-$(basename "$dir").json"
+  local out_file
+  out_file="$TMPDIR_BASE/output-$(basename "$dir").json"
   bash "$DETECT" "$dir" > "$out_file"
   echo "$out_file"
 }
