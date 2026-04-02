@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-04-02
+
+- Improved Turborepo support — pnpm -w flag, turbo typecheck, tsconfig guidance.
 ## 2026-04-01
 
 - Fixed address 18 review findings from dual-reviewer audit.

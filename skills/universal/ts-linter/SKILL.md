@@ -6,11 +6,12 @@ description: 'Set up and enforce a strict, production-grade ESLint configuration
   linting errors, clean up code style, or add type-aware linting. Trigger on: "lint",
   "eslint", "code quality", "static analysis", "strict linting", "make it stricter",
   "make the code stricter", "add better rules", "clean up the codebase", "enforce
-  standards", "fix all the warnings", or "ShadCN lint errors". Handles detection, config generation, dependency
-  installation, auto-fix, and manual remediation. Do NOT use for Biome or Rome projects,
-  Prettier-only formatting, non-TypeScript/JavaScript projects, writing custom ESLint
-  rules or plugins, husky/lint-staged/pre-commit hook setup, or when the user just
-  wants to run an existing linter without changing its configuration.
+  standards", "fix all the warnings", or "ShadCN lint errors". Handles detection,
+  config generation, dependency installation, auto-fix, and manual remediation. Do
+  NOT use for Biome or Rome projects, Prettier-only formatting, non-TypeScript/JavaScript
+  projects, writing custom ESLint rules or plugins, husky/lint-staged/pre-commit hook
+  setup, or when the user just wants to run an existing linter without changing its
+  configuration.
 
   '
 metadata:
@@ -23,7 +24,7 @@ metadata:
   - code-quality
   - static-analysis
   status: ready
-  version: 6
+  version: 7
 ---
 
 # TypeScript Linter Skill
