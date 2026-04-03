@@ -47,7 +47,7 @@ Every report must comply with rules in the `rules/` directory. See `rules/_secti
 
 ## Mode A — Draft
 
-Produce a complete, standards-compliant bug report from a rough description. Ask the most critical missing piece first (steps to reproduce > expected behavior > environment > role/precondition > reproducibility) — one focused question, not a list. Infer environment, component, and browser/device from context when possible. Title: `[Component] Description of broken behavior` — max 80 chars, no "bug/issue/defect/error". Assign severity per Field Reference; flag if evidence is required but not provided.
+Produce a complete, standards-compliant bug report from a rough description. When information is missing, ask exactly ONE question — the single most critical gap (steps to reproduce > expected behavior > environment > role/precondition > reproducibility). Never ask multiple questions, never present a numbered list of questions. Wait for the user's answer before asking the next gap. Infer environment, component, and browser/device from context when possible. Title MUST follow this exact pattern: `[Component] Verb-led description of broken behavior` — the description after the bracket MUST start with an active verb (e.g., "fails", "returns", "displays", "prevents"). Hard limit: 80 characters total including brackets. Never include the words "bug", "issue", "defect", or "error" in the title. Assign severity per Field Reference; flag if evidence is required but not provided.
 
 Output: JSON/XML/CSV — required fields: `id`, `title`, `summary`, `affected_component`, `environment` (type, browser, os, device, build_version), `severity`, `priority`, `status`, `reproducibility`, `reporter`, `preconditions`, `steps_to_reproduce` (step, action, observation), `actual_result`, `expected_result`, `attachments`, `tags`, `report_meta` (evidence_required, evidence_provided, inferred_fields, missing_fields).
 
@@ -65,7 +65,13 @@ Output: JSON with `enriched_report` (full report) and `enrichment_meta` (inferre
 
 ## Mode D — Normalize
 
-Convert reports from any format to the RAVN standard schema. Preserve all test logic. Fix behavior-over-UI violations. Split compound reports with `-A`/`-B` suffixes. Map source vocabulary: Blocker/Showstopper/S1→Critical, Major/S2→High, Normal/Moderate/S3→Medium, Minor/Trivial/S4→Low; Immediate/Urgent→P1, High(priority)→P2, Normal(priority)→P3, Low(priority)→P4. Defaults when uninferable: `severity=Medium` · `priority=P3` · `status=New` · `reproducibility=Intermittent` · `environment.type=Staging`.
+Convert reports from any format to the RAVN standard schema. Preserve all test logic. Fix behavior-over-UI violations. Split compound reports with `-A`/`-B` suffixes. **CRITICAL — vocabulary mapping is mandatory.** The normalized output MUST use only RAVN-standard enum values. Replace all source vocabulary before emitting output:
+
+- **Severity:** Blocker/Showstopper/S1 → `Critical` · Major/S2 → `High` · Normal/Moderate/S3 → `Medium` · Minor/Trivial/S4 → `Low`
+- **Priority:** Immediate/Urgent → `P1` · High(priority) → `P2` · Normal(priority) → `P3` · Low(priority) → `P4`
+- **Status:** Open/Active/Todo → `New` · In Progress stays `In Progress` · Resolved/Done → `Verified` · Closed stays `Closed`
+
+Never emit the original source vocabulary (e.g., "Blocker", "Urgent", "Open") as a field value in the normalized report. Defaults when uninferable: `severity=Medium` · `priority=P3` · `status=New` · `reproducibility=Intermittent` · `environment.type=Staging`.
 
 Output: JSON/XML/CSV with `normalized_reports` (array) and `normalization_summary` (original_count, normalized_count, splits_performed, fields_inferred, issues_fixed, data_loss_warnings).
 
