@@ -57,8 +57,8 @@ Map what you find:
 
 | `package.json` script | Hook variable | Fallback |
 |---|---|---|
-| `"lint"` or `"lint:check"` | `LINT_CMD` | `npx eslint` |
-| `"typecheck"` or `"type-check"` or `"tsc"` | `TSC_CMD` | `npx tsc --noEmit` |
+| `"lint"` or `"lint:check"` | `LINT_CMD` | `npx eslint` (or `pnpm exec eslint` for pnpm) |
+| `"typecheck"` or `"type-check"` or `"tsc"` | `TSC_CMD` | `npx tsc --noEmit` (or `pnpm exec tsc --noEmit`) |
 | `"test"` or `"test:unit"` | `TEST_CMD` | (skip if absent) |
 
 Common patterns to detect:

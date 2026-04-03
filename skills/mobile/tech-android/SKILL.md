@@ -5,7 +5,7 @@ description: Android and Kotlin development patterns — Compose, architecture, 
   UI, or reviewing Android-specific code.
 metadata:
   category: mobile
-  extends: platform-mobile
+  extends: core-coding-standards
   tags:
   - android
   - kotlin
