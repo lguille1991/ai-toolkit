@@ -67,18 +67,30 @@ skills/[category]/[name]/
 
 ### SKILL.md Frontmatter
 
-Every SKILL.md MUST have:
-- `name` - kebab-case skill identifier
-- `description` - what it does + trigger phrases for auto-invocation
+Every SKILL.md MUST have (per Agent Skills spec):
+- `name` - kebab-case, 1-64 chars, must match folder name
+- `description` - what it does + trigger phrases, max 1024 chars
 
-Required inside `metadata`:
-- `category` - one of: universal, frontend, backend, database, mobile, testing, cli, assistant
-- `tags` - array of keywords for discoverability
-- `status` - ready or scaffold
+Optional (Agent Skills spec):
+- `license` - license name or reference
+- `compatibility` - environment requirements
+- `metadata` - arbitrary key-value map (this project uses `category`, `tags`, `status`, `version`)
+- `allowed-tools` - space-delimited tool list or YAML list
 
-Optional: `license`, `metadata.version`
+Optional (Claude Code extensions):
+- `disable-model-invocation` - boolean, prevents Claude auto-invocation
+- `user-invocable` - boolean, hides from `/` menu when false
+- `argument-hint` - autocomplete hint string
+- `model` - model override when skill is active
+- `effort` - one of: `low`, `medium`, `high`, `max`
+- `context` - set to `fork` for isolated subagent execution
+- `agent` - subagent type for `context: fork`
+- `hooks` - lifecycle hooks scoped to skill
+- `paths` - glob patterns limiting auto-activation
+- `shell` - `bash` (default) or `powershell`
 
-Skills can declare `extends: <parent-skill-name>` in frontmatter to inherit rules from a parent skill (e.g., `tech-react` extends `platform-frontend`).
+Optional (project extension):
+- `extends` - parent skill name for rule inheritance (e.g., `tech-react` extends `platform-frontend`)
 
 ### Rule File Format
 

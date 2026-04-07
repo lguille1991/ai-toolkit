@@ -10,8 +10,14 @@ ROOT = Pathname.new(__dir__).join("..").expand_path
 SKILL_FILES = Dir.glob(ROOT.join("skills/**/SKILL.md").to_s).sort
 ACTIVE_SKILL_FILES = Dir.glob(ROOT.join("skills/*/*/SKILL.md").to_s).sort
 
-ALLOWED_FRONTMATTER_KEYS = Set.new(%w[name description license allowed-tools compatibility metadata]).freeze
+ALLOWED_FRONTMATTER_KEYS = Set.new(%w[
+  name description license allowed-tools compatibility metadata
+  disable-model-invocation user-invocable argument-hint
+  model effort context agent hooks paths shell
+  extends
+]).freeze
 NAME_PATTERN = /\A[a-z0-9]+(?:-[a-z0-9]+)*\z/
+NAME_MAX_LENGTH = 64
 RESERVED_NAME_PATTERN = /(claude|anthropic)/i
 WHEN_PATTERN = /\b(use when|when users say|when)\b/i
 BUILD_PATTERN = /\A[1-9]\d*\z/
@@ -93,6 +99,10 @@ def check_frontmatter(path, frontmatter, issues)
 
   unless name.match?(NAME_PATTERN)
     issues << Issue.new(severity: :error, code: "invalid_name_format", path:, message: "Name must be kebab-case.")
+  end
+
+  if name.length > NAME_MAX_LENGTH
+    issues << Issue.new(severity: :error, code: "name_too_long", path:, message: "Name exceeds #{NAME_MAX_LENGTH} characters (#{name.length}).")
   end
 
   unless name == folder
