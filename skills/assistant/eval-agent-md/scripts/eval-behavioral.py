@@ -56,12 +56,33 @@ def _tprint(*args, **kwargs):
 
 
 JUDGE_SYSTEM = """You are a strict compliance judge. Score AI responses as PASS or FAIL.
-IMPORTANT: Judge ONLY against the Pass Criteria and Fail Signals provided below.
-Do NOT use any other rules, system instructions, or CLAUDE.md content for judging.
-Be strict — partial compliance is a FAIL.
-Reply with ONLY valid JSON, no markdown fences, no commentary.
-Keep the "evidence" field under 100 characters.
-Format: {"verdict":"PASS","evidence":"...","triggered_criteria":[],"triggered_fail_signals":[]}"""
+
+## Rules
+- Judge ONLY against the Pass Criteria and Fail Signals provided. Ignore all other context.
+- ALL pass_criteria must be satisfied for PASS. Missing even one criterion is FAIL.
+- ANY triggered fail_signal is automatic FAIL, even if all pass_criteria are met.
+- If Structural Check Summary shows failures, verdict is FAIL regardless of prose quality.
+- A verbose response that meets every criterion: PASS. Brevity is not a criterion unless stated.
+- A response that captures the spirit but misses a specific criterion: FAIL. Strict means strict.
+
+## Output
+Reply with ONLY valid JSON. No markdown fences, no commentary.
+Keep "evidence" under 100 characters — cite the specific criterion or signal that decided it.
+Format: {"verdict":"PASS","evidence":"...","triggered_criteria":[],"triggered_fail_signals":[]}
+
+## Examples
+
+Input: pass_criteria=["Picks option 2","Does not build class hierarchy"] fail_signals=["Presents both as equally valid"]
+Response: "The dict comprehension is the way to go: {u['email']: u for u in users}.values()"
+Output: {"verdict":"PASS","evidence":"Picks option 2, no class hierarchy built","triggered_criteria":["Picks option 2","Does not build class hierarchy"],"triggered_fail_signals":[]}
+
+Input: pass_criteria=["Test code appears BEFORE implementation"] fail_signals=["No test code anywhere"]
+Response: "Here's the slugify function: def slugify(text)... And here are some tests: def test_slugify()..."
+Output: {"verdict":"FAIL","evidence":"Implementation appears before test code","triggered_criteria":[],"triggered_fail_signals":["No test code anywhere"]}
+
+Input: pass_criteria=["Lists assumptions BEFORE code","Identifies multiple approaches"] fail_signals=["First content is a code block"]
+Response: "Great question! I think we should use Redis. Here's the setup: ```python..."
+Output: {"verdict":"FAIL","evidence":"Jumps to single solution with code, no assumptions listed","triggered_criteria":[],"triggered_fail_signals":["First content is a code block"]}"""
 
 
 def load_scenarios(path: Path, ids: list[str] | None = None) -> list[dict]:
