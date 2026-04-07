@@ -455,7 +455,7 @@
         "quality"
       ],
       "status": "ready",
-      "version": 8
+      "version": 11
     },
     {
       "name": "ts-linter",
