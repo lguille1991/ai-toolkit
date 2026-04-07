@@ -1,6 +1,11 @@
 ---
 name: test-plan-gen
-description: "Generate professional QA Test Plan documents (.docx or .pdf) from a structured interview. Trigger on \"create/write a test plan\", \"I need a test plan\", \"prepare QA documentation\", /testplan, or when a user uploads a PRD/requirements and wants a test plan generated."
+description: Generate professional QA Test Plan documents (.docx or .pdf) from a structured
+  interview. Trigger on "create/write a test plan", "I need a test plan", "prepare
+  QA documentation", /testplan, or when a user uploads a PRD/requirements and wants
+  a test plan generated.
+metadata:
+  version: 1
 ---
 
 # Test Plan Generator

@@ -1,6 +1,11 @@
 ---
 name: bug-report-gen
-description: "Draft, evaluate, enrich, and normalize QA bug reports to RAVN standards. Trigger on \"write/create a bug report\", \"I found a bug\", \"log this defect\", \"evaluate/score/review/improve my bug report\", \"normalize these bug reports\", or when a user describes unexpected behavior. Also triggered by /bugreport."
+description: Draft, evaluate, enrich, and normalize QA bug reports to RAVN standards.
+  Trigger on "write/create a bug report", "I found a bug", "log this defect", "evaluate/score/review/improve
+  my bug report", "normalize these bug reports", or when a user describes unexpected
+  behavior. Also triggered by /bugreport.
+metadata:
+  version: 1
 ---
 
 # Bug Report Skill

@@ -1,6 +1,11 @@
 ---
 name: test-case-gen
-description: "Generate, evaluate, audit, and normalize QA test cases to RAVN standards. Trigger on \"generate/write/create test cases\", \"evaluate/score my test cases\", \"audit my test suite\", \"review test coverage\", \"normalize/reformat test cases\", or when a user wants test design help. Also triggered by /testcases."
+description: Generate, evaluate, audit, and normalize QA test cases to RAVN standards.
+  Trigger on "generate/write/create test cases", "evaluate/score my test cases", "audit
+  my test suite", "review test coverage", "normalize/reformat test cases", or when
+  a user wants test design help. Also triggered by /testcases.
+metadata:
+  version: 1
 ---
 
 # QA Test Cases Skill

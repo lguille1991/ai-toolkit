@@ -1,6 +1,18 @@
 ---
 name: locators-scanner
-description: "Scan a website URL and extract the best locators for every visible element on the page, outputting a Page Object Model (POM) code file and/or a JSON locator map tailored to a specific test automation framework (Playwright, Cypress, or WebdriverIO). Use when users say \"scan this page for locators\", \"extract locators from URL\", \"get selectors from website\", \"generate page object from URL\", \"build POM from page\", \"find locators for this URL\", \"what locators should I use for this page\", \"scan this page for elements\", \"extract selectors\", \"generate locator map\", \"get element selectors for testing\", or mention scanning/extracting locators from a website. Also trigger when a user pastes a URL and asks to generate a page object, locator map, or selectors for Playwright, Cypress, or WebdriverIO. Also explicitly triggered by the /locators command."
+description: Scan a website URL and extract the best locators for every visible element
+  on the page, outputting a Page Object Model (POM) code file and/or a JSON locator
+  map tailored to a specific test automation framework (Playwright, Cypress, or WebdriverIO).
+  Use when users say "scan this page for locators", "extract locators from URL", "get
+  selectors from website", "generate page object from URL", "build POM from page",
+  "find locators for this URL", "what locators should I use for this page", "scan
+  this page for elements", "extract selectors", "generate locator map", "get element
+  selectors for testing", or mention scanning/extracting locators from a website.
+  Also trigger when a user pastes a URL and asks to generate a page object, locator
+  map, or selectors for Playwright, Cypress, or WebdriverIO. Also explicitly triggered
+  by the /locators command.
+metadata:
+  version: 1
 ---
 
 # Locator Extractor Skill
