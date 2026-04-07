@@ -128,6 +128,7 @@ npx skills add ravnhq/ai-toolkit -s platform-testing
 | `agent-pr-creator` | Analyzes git diffs and commit history to create pull requests via gh CLI. |
 | `rewrite-commit-history` | Rewrite a feature branch's commit history into clean conventional commits. |
 | `eval-agent-md` | Behavioral compliance testing for CLAUDE.md or agent definition files. |
+| `parallel` | Run a task in a background sub-agent so you can continue working on other things. |
 | `grill-me` | Interview the user relentlessly about a plan or design until reaching shared understanding. |
 | `pr-comments-address` | Reads open review comments from a GitHub PR, triages them, applies code fixes. |
 | `transcript-notes` | Process meeting transcripts into structured notes with metadata, TL;DR, and action items. |
