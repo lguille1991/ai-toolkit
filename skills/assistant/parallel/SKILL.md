@@ -13,11 +13,11 @@ metadata:
   - sub-agent
   - workflow
   status: ready
-  version: 1
+  version: 2
   triggers:
     positive:
-    - '/parallel refactor the auth module'
-    - '/parallel /promptify audit all skills against our findings doc'
+    - "/parallel refactor the auth module"
+    - "/parallel /promptify audit all skills against our findings doc"
     negative:
     - run this in the background and fix all lint errors in src/
     - spawn an agent to update the changelog

@@ -470,7 +470,7 @@
         "workflow"
       ],
       "status": "ready",
-      "version": 1
+      "version": 2
     },
     {
       "name": "ts-linter",

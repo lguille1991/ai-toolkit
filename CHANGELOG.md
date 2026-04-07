@@ -2,6 +2,7 @@
 
 ## 2026-04-07
 
+- Added background sub-agent skill for dispatching tasks. (#22)
 - Added qa skills. (#23)
 - Improved behavioral compliance to v11. (#19)
 - Added rewrite barebones skills with structured rules and best practices. (#24)
